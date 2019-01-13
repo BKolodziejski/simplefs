@@ -23,6 +23,7 @@
 
 int main() {
     printf("proc1: Start\n");
+    
     // Forward slash at the beginning of the name follows POSIX convention
     // If semaphore already exists, value argument has no effect
     sem_t* sem = sem_open("/simplefs_test", O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 2);

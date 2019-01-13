@@ -11,6 +11,7 @@
 
 int main() {
     printf("proc3: Start\n");
+    
     // The sem_unlink function removes the name of the semaphore.
     // If there are no open references to the semaphore, then it is destroyed.
     // Otherwise, destruction is deferred until the last open reference is closed.
