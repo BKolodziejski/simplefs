@@ -2,6 +2,7 @@
 // Created by kolo on 12.01.19.
 //
 
+#include <math.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -11,8 +12,11 @@
 #include "filesystem.h"
 #include "patheval.h"
 
+int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len);
 
-uint64_t writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len);
+static uint64_t blockIndexToBitmapPosition(SimplefsIndex blockIndex) ;
+
+int reserveBlocks(int blocks, SimplefsIndex* destination);
 
 void createDefaultSimplefs() {
     int fd = open(SIMPLEFS_PATH, O_WRONLY | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
@@ -26,7 +30,7 @@ void createDefaultSimplefs() {
     Inode root = {0, SIMPLEFS_FILETYPE_DIR, 1, 0, 0, 0};
     write(fd, &root, sizeof(Inode));
     // set first block to used by root
-    lseek(fd, SIMPLEFS_INODE_COUNT * sizeof(Inode), SEEK_SET);
+    lseek(fd, blockIndexToBitmapPosition(0), SEEK_SET);
     uint8_t blockIsTaken = 1;
     write(fd, &blockIsTaken, sizeof(uint8_t));
     Directory emptyDir;
@@ -55,23 +59,9 @@ static Inode getInode(int fd, SimplefsIndex index) {
 }
 
 SimplefsIndex reserveNextFreeBlock() {
-    uint8_t blockIsTaken;
-    int fd = open(SIMPLEFS_PATH, O_RDWR);
-    int blockBitmapOffset = SIMPLEFS_INODE_COUNT * sizeof(Inode);
-    lseek(fd, blockBitmapOffset, SEEK_SET);
-    for (SimplefsIndex i = 0; i < SIMPLEFS_BLOCK_COUNT; ++i) {
-        read(fd, &blockIsTaken, sizeof(uint8_t));
-        if (!blockIsTaken) {
-            lseek(fd, -sizeof(uint8_t), SEEK_CUR);
-            blockIsTaken = 1;
-            write(fd, &blockIsTaken, sizeof(uint8_t));
-            close(fd);
-            return i;
-        }
-    }
-
-    close(fd);
-    return SIMPLEFS_BLOCK_COUNT;
+    SimplefsIndex destination;
+    reserveBlocks(1, &destination);
+    return destination;
 }
 
 SimplefsIndex reserveNextFreeInode(uint8_t type) {
@@ -84,7 +74,7 @@ SimplefsIndex reserveNextFreeInode(uint8_t type) {
             inode.isUsed = 1;
             inode.fileType = type;
             inode.firstBlockIndex = reserveNextFreeBlock();
-            write(fd, &inode, sizeof(inode));
+            write(fd, &inode, sizeof(Inode));
             close(fd);
             return i;
         }
@@ -141,10 +131,26 @@ uint64_t readFile(SimplefsIndex inodeIndex, void* whereTo, uint32_t startPos, ui
     return readDataSize;
 }
 
-uint64_t writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len) {
+int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
+    if (newSize <= currentSize) {
+        return 0;
+    }
+    uint64_t remainingSizeInLastBlock = SIMPLEFS_BLOCK_SIZE - (currentSize % SIMPLEFS_BLOCK_SIZE);
+    return (int) ceil((double)(newSize - currentSize - remainingSizeInLastBlock) / SIMPLEFS_BLOCK_SIZE);
+}
+
+int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len) {
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     Inode inode = getInode(fd, inodeIndex);
 
+    int requiredNewBlocks = calculateRequiredNumberOfBlocks(inode.fileSize, len + startPos);
+    SimplefsIndex reservedBlocks[requiredNewBlocks];
+
+
+    if (reserveBlocks(requiredNewBlocks, reservedBlocks) == ERR_NOT_ENOUGH_SPACE) {
+        return ERR_NOT_ENOUGH_SPACE;
+    }
+    int currentReservedBlockIndex = 0;
     uint32_t currentBufferOffset = 0;
     uint64_t currentFileSystemPos = blockIndexToPosition(inode.firstBlockIndex);
     uint32_t currentFilePos = 0;
@@ -175,7 +181,7 @@ uint64_t writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint3
     // write data
     while(remainingSizeToWrite != 0) {
         if (remainingSizeToEOF <= 0 && currentBufferOffset != 0) {
-            SimplefsIndex newBlockIndex = reserveNextFreeBlock();
+            SimplefsIndex newBlockIndex = reservedBlocks[currentReservedBlockIndex++];
             write(fd, &newBlockIndex, sizeof(SimplefsIndex));
             currentFileSystemPos = blockIndexToPosition(newBlockIndex);
         }
@@ -201,6 +207,37 @@ uint64_t writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint3
         write(fd, &inode, sizeof(Inode));
     }
     close(fd);
+}
+
+int reserveBlocks(int howMany, SimplefsIndex* reserved) {
+    uint8_t blockIsTaken;
+    int howManyFound = 0;
+
+    int fd = open(SIMPLEFS_PATH, O_RDWR);
+    int blockBitmapOffset = SIMPLEFS_INODE_COUNT * sizeof(Inode);
+    lseek(fd, blockBitmapOffset, SEEK_SET);
+
+    for (SimplefsIndex i = 0; i < SIMPLEFS_BLOCK_COUNT && howMany != howManyFound; ++i) {
+        read(fd, &blockIsTaken, sizeof(uint8_t));
+        if (!blockIsTaken) {
+            reserved[howManyFound] = i;
+            ++howManyFound;
+        }
+    }
+
+    if (howManyFound != howMany) {
+        return ERR_NOT_ENOUGH_SPACE;
+    }
+
+    blockIsTaken = 1;
+    for (int i = 0; i < howManyFound; ++i) {
+        lseek(fd, blockIndexToBitmapPosition(reserved[i]), SEEK_SET);
+        write(fd, &blockIsTaken, sizeof(uint8_t));
+    }
+
+    close(fd);
+
+    return howManyFound;
 }
 
 void makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
@@ -234,18 +271,34 @@ void createFile(SimplefsIndex parentDirInodeIndex, char* name) {
             strcpy(dir.files[i].filename, name);
             dir.files[i].inodeIndex = reserveNextFreeInode(SIMPLEFS_FILETYPE_FILE);
             dir.files[i].isUsed = 1;
-            writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
             close(fsDescriptor);
             return;
         }
     }
 }
 
-// TODO: recursive unlink for directory, handle parent directory still pointing to unlinked file
-void unlinkInode(SimplefsIndex inodeIndex) {
+int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
+
+    Directory parentDir;
+    readFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
+
+    SimplefsIndex inodeIndex = SIMPLEFS_INODE_COUNT;
+
+    for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
+        if (parentDir.files[i].isUsed && strcmp(parentDir.files[i].filename, fileName) == 0) {
+            parentDir.files[i].isUsed = 0;
+            inodeIndex = parentDir.files[i].inodeIndex;
+            writeFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
+            break;
+        }
+    }
+
+    if (inodeIndex == SIMPLEFS_INODE_COUNT) {
+        return ERR_FILENAME_NOT_FOUND;
+    }
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
-    lseek(fsDescriptor, inodeIndexToPosition(inodeIndex), SEEK_SET);
     Inode inode;
+    lseek(fsDescriptor, inodeIndexToPosition(inodeIndex), SEEK_SET);
     read(fsDescriptor, &inode, sizeof(Inode));
     lseek(fsDescriptor, -sizeof(Inode), SEEK_CUR);
     inode.isUsed = 0;
@@ -255,7 +308,7 @@ void unlinkInode(SimplefsIndex inodeIndex) {
     SimplefsIndex nextBlockIndex;
     uint8_t isNotUsed = 0;
     do {
-        lseek(fsDescriptor, SIMPLEFS_BLOCK_SIZE, SEEK_CUR);
+        lseek(fsDescriptor, blockIndexToPosition(currentBlockIndex) + SIMPLEFS_BLOCK_SIZE, SEEK_SET);
         read(fsDescriptor, &nextBlockIndex, sizeof(SimplefsIndex));
         lseek(fsDescriptor, blockIndexToBitmapPosition(currentBlockIndex), SEEK_SET);
         write(fsDescriptor, &isNotUsed, sizeof(uint8_t));
@@ -272,16 +325,25 @@ void simplefsInit() {
     }
     // debug stuff
     makeDir(0, "child");
-    unlinkInode(1);
+    unlinkFile(0, "child");
     makeDir(0, "child2");
     makeDir(0, "child3");
     makeDir(0, "child4");
     makeDir(0, "child5");
     makeDir(0, "child6");
     makeDir(0, "child7");
+    makeDir(1, "child8");
+    makeDir(2, "child9");
 
     Directory root;
     readFile(0, &root, 0, sizeof(Directory));
-    SimplefsIndex index = evaluatePath("/child7");
+    SimplefsIndex index = evaluatePath("/child2/child8");
+    char fname[65];
+    Directory root1;
+    readFile(1, &root1, 0, sizeof(Directory));
+    Directory root2;
+    readFile(2, &root2, 0, sizeof(Directory));
+    SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", fname);
     close(fsDescriptor);
 }
+

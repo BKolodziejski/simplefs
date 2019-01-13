@@ -13,6 +13,9 @@
 
 #define ROOT_INODE_INDEX 0
 
+#define ERR_FILENAME_NOT_FOUND -1
+#define ERR_NOT_ENOUGH_SPACE -2
+
 typedef struct block_ {
     uint8_t data[SIMPLEFS_BLOCK_SIZE];
     uint32_t nextBlockIndex;

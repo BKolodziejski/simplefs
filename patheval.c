@@ -26,3 +26,23 @@ SimplefsIndex evaluatePath(char* path) {
     char* firstPathSection = strtok(copied, "/"); // will remove first "/" and later calls can be strtok(NULL, "/")
     return evaluatePathRecursive(ROOT_INODE_INDEX, firstPathSection);
 }
+
+void cutOffLastPathSection(char* path, char* lastPathSectionOutput) {
+    char currentChar = 'x'; // any value that is not \0
+    int lastNotedSlashOffset = 0;
+    for (int pathOffset = 0; currentChar != '\0'; ++pathOffset) {
+        currentChar = path[pathOffset];
+        if (currentChar == '/') {
+            lastNotedSlashOffset = pathOffset;
+        }
+    }
+    strcpy(lastPathSectionOutput, path + lastNotedSlashOffset + 1);
+    path[lastNotedSlashOffset] = '\0';
+}
+
+SimplefsIndex evaluatePathForParent(char* path, char* childFileNameOutput) {
+    char copied[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
+    strcpy(copied, path);
+    cutOffLastPathSection(copied, childFileNameOutput);
+    return evaluatePath(copied);
+}
