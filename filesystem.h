@@ -11,10 +11,14 @@
 #define SIMPLEFS_FILETYPE_DIR 0
 #define SIMPLEFS_FILETYPE_FILE 1
 
+#define ROOT_INODE_INDEX 0
+
 typedef struct block_ {
     uint8_t data[SIMPLEFS_BLOCK_SIZE];
     uint32_t nextBlockIndex;
 } Block;
+
+typedef uint32_t SimplefsIndex;
 
 typedef struct inode_ {
     uint8_t accesses;
@@ -28,6 +32,7 @@ typedef struct inode_ {
 typedef struct directory_record_ {
     char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
     uint32_t inodeIndex;
+    uint8_t isUsed;
 } DirectoryRecord;
 
 typedef struct directory_ {
@@ -37,6 +42,8 @@ typedef struct directory_ {
 void createDefaultSimplefs();
 
 void simplefsInit();
+
+uint64_t readFile(SimplefsIndex inodeIndex, void* whereTo, uint32_t startPos, uint32_t len);
 
 
 #endif //SIMPLEFS_FILESYSTEM_H
