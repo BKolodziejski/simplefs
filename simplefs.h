@@ -13,5 +13,7 @@ int simplefs_write(int fd, char* buf, int len);
 
 #define ERR_SIMPLEFS_TOO_MANY_FILES_OPEN -1
 #define ERR_INVALID_FD -2
+#define ERR_FILENAME_NOT_FOUND -3
+#define ERR_NOT_ENOUGH_SPACE -4
 
 #endif //SIMPLEFS_SIMPLEFS_H

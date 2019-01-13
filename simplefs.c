@@ -4,6 +4,7 @@
 #include "simplefs.h"
 #include "consts.h"
 #include "filesystem.h"
+#include "patheval.h"
 
 typedef struct FdData {
     int isOpen;
@@ -41,26 +42,41 @@ void initializeIfNeeded() {
     fdArrayInitialized = 1;
 }
 
-int simplefs_open(char* name, int mode) {
+int simplefs_open(char* path, int mode) {
     initializeIfNeeded();
     // TODO: semaphores
     int fd = getNextFreeFd();
     if (fd == SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS) {
         return ERR_SIMPLEFS_TOO_MANY_FILES_OPEN;
     }
-    // TODO: set inode number
+    fdToData[fd].inodeNumber = evaluatePath(path);
+    if (fdToData[fd].inodeNumber == ERR_FILENAME_NOT_FOUND) {
+        return ERR_FILENAME_NOT_FOUND;
+    }
     fdToData[fd].isOpen = 1;
     return fd;
 }
 
-int simplefs_unlink(char* name) {
+int simplefs_unlink(char* path) {
     initializeIfNeeded();
     // TODO: semaphores
+    char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
+    SimplefsIndex index = evaluatePathForParent(path, filename);
+    if (index == SIMPLEFS_INODE_COUNT) {
+        return ERR_FILENAME_NOT_FOUND;
+    }
+    return unlinkFile(index, filename);
 }
 
-int simplefs_mkdir(char* name) {
+int simplefs_mkdir(char* path) {
     initializeIfNeeded();
     // TODO: semaphores
+    char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
+    SimplefsIndex index = evaluatePathForParent(path, filename);
+    if (index == SIMPLEFS_INODE_COUNT) {
+        return ERR_FILENAME_NOT_FOUND;
+    }
+    return makeDir(index, filename);
 }
 
 int simplefs_read(int fd, char* buf, int len) {
@@ -69,6 +85,8 @@ int simplefs_read(int fd, char* buf, int len) {
     if (!(fd >= 0 && fd < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS && fdToData[fd].isOpen)) {
         return ERR_INVALID_FD;
     }
+
+    return readFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
 }
 
 int simplefs_write(int fd, char* buf, int len) {
@@ -77,6 +95,8 @@ int simplefs_write(int fd, char* buf, int len) {
     if (!(fd >= 0 && fd < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS && fdToData[fd].isOpen)) {
         return ERR_INVALID_FD;
     }
+
+    return writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
 }
 
 

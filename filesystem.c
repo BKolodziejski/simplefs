@@ -11,6 +11,7 @@
 #include "consts.h"
 #include "filesystem.h"
 #include "patheval.h"
+#include "simplefs.h"
 
 int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len);
 
@@ -58,12 +59,6 @@ static Inode getInode(int fd, SimplefsIndex index) {
     return inode;
 }
 
-SimplefsIndex reserveNextFreeBlock() {
-    SimplefsIndex destination;
-    reserveBlocks(1, &destination);
-    return destination;
-}
-
 SimplefsIndex reserveNextFreeInode(uint8_t type) {
     Inode inode;
     int fd = open(SIMPLEFS_PATH, O_RDWR);
@@ -73,7 +68,9 @@ SimplefsIndex reserveNextFreeInode(uint8_t type) {
             lseek(fd, -sizeof(Inode), SEEK_CUR);
             inode.isUsed = 1;
             inode.fileType = type;
-            inode.firstBlockIndex = reserveNextFreeBlock();
+            if (reserveBlocks(1, &inode.firstBlockIndex) == ERR_NOT_ENOUGH_SPACE) {
+                return SIMPLEFS_INODE_COUNT;
+            }
             write(fd, &inode, sizeof(Inode));
             close(fd);
             return i;
@@ -240,7 +237,7 @@ int reserveBlocks(int howMany, SimplefsIndex* reserved) {
     return howManyFound;
 }
 
-void makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
+int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
     Directory dir;
     readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
@@ -248,6 +245,9 @@ void makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
         if (!dir.files[i].isUsed) {
             strcpy(dir.files[i].filename, name);
             dir.files[i].inodeIndex = reserveNextFreeInode(SIMPLEFS_FILETYPE_DIR);
+            if (dir.files[i].inodeIndex == SIMPLEFS_INODE_COUNT) {
+                return ERR_NOT_ENOUGH_SPACE;
+            }
             dir.files[i].isUsed = 1;
             writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
             Directory emptyDir;
@@ -257,12 +257,12 @@ void makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
             emptyDir.files[1] = thisDir;
             writeFile(dir.files[i].inodeIndex, &emptyDir, 0, sizeof(Directory));
             close(fsDescriptor);
-            return;
+            return 0;
         }
     }
 }
 
-void createFile(SimplefsIndex parentDirInodeIndex, char* name) {
+int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
     Directory dir;
     readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
@@ -270,9 +270,16 @@ void createFile(SimplefsIndex parentDirInodeIndex, char* name) {
         if (!dir.files[i].isUsed) {
             strcpy(dir.files[i].filename, name);
             dir.files[i].inodeIndex = reserveNextFreeInode(SIMPLEFS_FILETYPE_FILE);
+
+            if (dir.files[i].inodeIndex == SIMPLEFS_INODE_COUNT) {
+                close(fsDescriptor);
+                return ERR_NOT_ENOUGH_SPACE;
+            }
+
             dir.files[i].isUsed = 1;
+            writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
             close(fsDescriptor);
-            return;
+            return 0;
         }
     }
 }
@@ -283,6 +290,8 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
     readFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
 
     SimplefsIndex inodeIndex = SIMPLEFS_INODE_COUNT;
+
+    uint8_t isDirectory = 0;
 
     for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (parentDir.files[i].isUsed && strcmp(parentDir.files[i].filename, fileName) == 0) {
@@ -296,11 +305,23 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
     if (inodeIndex == SIMPLEFS_INODE_COUNT) {
         return ERR_FILENAME_NOT_FOUND;
     }
+
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
     Inode inode;
     lseek(fsDescriptor, inodeIndexToPosition(inodeIndex), SEEK_SET);
     read(fsDescriptor, &inode, sizeof(Inode));
-    lseek(fsDescriptor, -sizeof(Inode), SEEK_CUR);
+
+    if (inode.fileType == SIMPLEFS_FILETYPE_DIR) {
+        Directory dir;
+        readFile(inodeIndex, &dir, 0, sizeof(Directory));
+        for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
+            if (dir.files[i].isUsed && strcmp(dir.files[i].filename, "..") != 0 && strcmp(dir.files[i].filename, ".") != 0) {
+                unlinkFile(inodeIndex, dir.files[i].filename);
+            }
+        }
+    }
+
+    lseek(fsDescriptor, inodeIndexToPosition(inodeIndex), SEEK_SET);
     inode.isUsed = 0;
     write(fsDescriptor, &inode, sizeof(Inode));
     int64_t remainingFileSize = inode.fileSize;
@@ -316,6 +337,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
         remainingFileSize -= SIMPLEFS_BLOCK_SIZE;
     } while (remainingFileSize > 0);
     close(fsDescriptor);
+    return 0;
 }
 
 void simplefsInit() {
@@ -344,6 +366,8 @@ void simplefsInit() {
     Directory root2;
     readFile(2, &root2, 0, sizeof(Directory));
     SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", fname);
+    unlinkFile(0, "child2");
+    SimplefsIndex index2 = evaluatePath("/child2/child8");
     close(fsDescriptor);
 }
 

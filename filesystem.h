@@ -13,9 +13,6 @@
 
 #define ROOT_INODE_INDEX 0
 
-#define ERR_FILENAME_NOT_FOUND -1
-#define ERR_NOT_ENOUGH_SPACE -2
-
 typedef struct block_ {
     uint8_t data[SIMPLEFS_BLOCK_SIZE];
     uint32_t nextBlockIndex;
@@ -47,6 +44,12 @@ void createDefaultSimplefs();
 void simplefsInit();
 
 uint64_t readFile(SimplefsIndex inodeIndex, void* whereTo, uint32_t startPos, uint32_t len);
+
+int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName);
+
+int makeDir(SimplefsIndex parentDirInodeIndex, char* name);
+
+int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len);
 
 
 #endif //SIMPLEFS_FILESYSTEM_H
