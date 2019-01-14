@@ -12,6 +12,7 @@
 #include "filesystem.h"
 #include "patheval.h"
 #include "simplefs.h"
+#include "sem.h"
 
 int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len);
 
@@ -59,7 +60,15 @@ static Inode getInode(int fd, SimplefsIndex index) {
     return inode;
 }
 
-SimplefsIndex reserveNextFreeInode(uint8_t type) {
+/**
+ * @param type file type
+ * @param freeInode new inode index
+ * @return 0 - OK; ERR_NOT_ENOUGH_SPACE - no free inode or block; ERR_RESOURCE_BUSY - inode table or block bitmap is locked
+ */
+int reserveNextFreeInode(uint8_t type, SimplefsIndex* freeInode) {
+    if (lockInodeTable()) {
+        return ERR_RESOURCE_BUSY;
+    }
     Inode inode;
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     for (SimplefsIndex i = 0; i < SIMPLEFS_INODE_COUNT; ++i) {
@@ -68,16 +77,22 @@ SimplefsIndex reserveNextFreeInode(uint8_t type) {
             lseek(fd, -sizeof(Inode), SEEK_CUR);
             inode.isUsed = 1;
             inode.fileType = type;
-            if (reserveBlocks(1, &inode.firstBlockIndex) == ERR_NOT_ENOUGH_SPACE) {
-                return SIMPLEFS_INODE_COUNT;
+            int status;
+            if ((status = reserveBlocks(1, &inode.firstBlockIndex))) {
+                close(fd);
+                unlockInodeTable();
+                return status;
             }
             write(fd, &inode, sizeof(Inode));
+            *freeInode = i;
             close(fd);
-            return i;
+            unlockInodeTable();
+            return 0;
         }
     }
     close(fd);
-    return SIMPLEFS_INODE_COUNT;
+    unlockInodeTable();
+    return ERR_NOT_ENOUGH_SPACE;
 }
 
 uint64_t readFile(SimplefsIndex inodeIndex, void* whereTo, uint32_t startPos, uint32_t len) {
@@ -136,6 +151,7 @@ int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
     return (int) ceil((double)(newSize - currentSize - remainingSizeInLastBlock) / SIMPLEFS_BLOCK_SIZE);
 }
 
+// TODO: handle writeFile() return values in all usages
 int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len) {
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     Inode inode = getInode(fd, inodeIndex);
@@ -143,9 +159,10 @@ int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t l
     int requiredNewBlocks = calculateRequiredNumberOfBlocks(inode.fileSize, len + startPos);
     SimplefsIndex reservedBlocks[requiredNewBlocks];
 
-
-    if (reserveBlocks(requiredNewBlocks, reservedBlocks) == ERR_NOT_ENOUGH_SPACE) {
-        return ERR_NOT_ENOUGH_SPACE;
+    int status;
+    if ((status = reserveBlocks(requiredNewBlocks, reservedBlocks))) {
+        close(fd);
+        return status;
     }
     int currentReservedBlockIndex = 0;
     uint32_t currentBufferOffset = 0;
@@ -206,7 +223,15 @@ int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t l
     close(fd);
 }
 
+/**
+ * @param howMany number of blocks to reserve
+ * @param reserved table of reserved blocks' indices
+ * @return 0 - OK; ERR_NOT_ENOUGH_SPACE - not enough blocks free; ERR_RESOURCE_BUSY - block bitmap semaphore is locked
+ */
 int reserveBlocks(int howMany, SimplefsIndex* reserved) {
+    if(lockBlockBitmap()) {
+        return ERR_RESOURCE_BUSY;
+    }
     uint8_t blockIsTaken;
     int howManyFound = 0;
 
@@ -223,6 +248,7 @@ int reserveBlocks(int howMany, SimplefsIndex* reserved) {
     }
 
     if (howManyFound != howMany) {
+        unlockBlockBitmap();
         return ERR_NOT_ENOUGH_SPACE;
     }
 
@@ -234,9 +260,15 @@ int reserveBlocks(int howMany, SimplefsIndex* reserved) {
 
     close(fd);
 
-    return howManyFound;
+    unlockBlockBitmap();
+    return 0;
 }
 
+/**
+ * @param parentDirInodeIndex
+ * @param name name of the new directory
+ * @return 0 - OK; ERR_NOT_ENOUGH_SPACE, ERR_RESOURCE_BUSY, ERR_MAX_FILES_IN_DIR_REACHED - errors;
+ */
 int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
     Directory dir;
@@ -244,11 +276,16 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
     for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (!dir.files[i].isUsed) {
             strcpy(dir.files[i].filename, name);
-            dir.files[i].inodeIndex = reserveNextFreeInode(SIMPLEFS_FILETYPE_DIR);
-            if (dir.files[i].inodeIndex == SIMPLEFS_INODE_COUNT) {
-                return ERR_NOT_ENOUGH_SPACE;
+            SimplefsIndex newDirInode = 0;
+            int status;
+            if ((status = reserveNextFreeInode(SIMPLEFS_FILETYPE_DIR, &newDirInode))) {
+                close(fsDescriptor);
+                return status;
             }
+            dir.files[i].inodeIndex = newDirInode;
             dir.files[i].isUsed = 1;
+            // TODO do przegadania: na jakiej wysokości realizować wykluczanie?
+            //  writeFile może się nie powieźć, bo block bitmap będzie zajęta i w tym momencie trzeba by odkręcić rezerwację inode'a
             writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
             Directory emptyDir;
             DirectoryRecord parent = {"..", parentDirInodeIndex, 1};
@@ -260,6 +297,9 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
             return 0;
         }
     }
+
+    close(fsDescriptor);
+    return ERR_MAX_FILES_IN_DIR_REACHED;
 }
 
 int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
@@ -269,13 +309,13 @@ int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
     for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (!dir.files[i].isUsed) {
             strcpy(dir.files[i].filename, name);
-            dir.files[i].inodeIndex = reserveNextFreeInode(SIMPLEFS_FILETYPE_FILE);
-
-            if (dir.files[i].inodeIndex == SIMPLEFS_INODE_COUNT) {
+            SimplefsIndex newFileInode;
+            int status;
+            if ((status = reserveNextFreeInode(SIMPLEFS_FILETYPE_FILE, &newFileInode))) {
                 close(fsDescriptor);
-                return ERR_NOT_ENOUGH_SPACE;
+                return status;
             }
-
+            dir.files[i].inodeIndex = newFileInode;
             dir.files[i].isUsed = 1;
             writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
             close(fsDescriptor);

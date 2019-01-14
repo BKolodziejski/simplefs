@@ -24,9 +24,25 @@
 #define SIMPLEFS_SEM_ALL_BUSY -2
 
 void getInodeSemaphoreName(char* buf, SimplefsIndex inodeIndex);
+
+/**
+ * @param inodeIndex
+ * @return 0 - OK;
+ *         SIMPLEFS_SEM_ALL_BUSY - all inode semaphores are in use;
+ *         SIMPLEFS_SEM_LOCK_FAILED - inode semaphore of inodeIndex is locked;
+ */
 int lockInode(SimplefsIndex inodeIndex);
+
+/**
+ * @return 0 - OK; SIMPLEFS_SEM_LOCK_FAILED - block bitmap semaphore is locked;
+ */
 int lockBlockBitmap();
+
+/**
+ * @return 0 - OK; SIMPLEFS_SEM_LOCK_FAILED - inode table semaphore is locked;
+ */
 int lockInodeTable();
+
 void unlockInode(SimplefsIndex inodeIndex);
 void unlockBlockBitmap();
 void unlockInodeTable();

@@ -17,8 +17,7 @@ static sem_t* countingSem;
 static sem_t* blockBitmapSem;
 static sem_t* inodeTableSem;
 
-
-void initializeIfNeeded() {
+static void initializeIfNeeded() {
     if (semaphoresInitialised) {
         return;
     }
@@ -38,7 +37,7 @@ void getInodeSemaphoreName(char* buf, SimplefsIndex inodeIndex) {
     sprintf(buf, temp, inodeIndex);
 }
 
-int lockSem(sem_t* sem) {
+static int lockSem(sem_t* sem) {
     struct timespec ts;
     if (sem_timedwait(sem, ms2ts(&ts, SIMPLEFS_SEM_WAIT_TIME)) == -1) {
         return SIMPLEFS_SEM_LOCK_FAILED;
@@ -46,11 +45,6 @@ int lockSem(sem_t* sem) {
     return 0;
 }
 
-/**
- * @param inodeIndex
- * @return SIMPLEFS_SEM_ALL_BUSY - all inode semaphores are in use;
- *         SIMPLEFS_SEM_LOCK_FAILED - inode semaphore of inodeIndex is locked;
- */
 int lockInode(SimplefsIndex inodeIndex) {
     initializeIfNeeded();
 
