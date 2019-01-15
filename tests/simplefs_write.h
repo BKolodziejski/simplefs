@@ -28,12 +28,22 @@ void Write_NegativeFd_ErrorCodeReturned() {
 
 void Write_ReadOnlyFd_ErrorCodeReturned() {
     char buf[] = {'X'};
-    int fd = simplefs_open("/file01", O_CREAT, O_RDWR);
+    int fd = simplefs_open("/file01", O_RDWR, O_CREAT);
     simplefs_close(fd);
 
     fd = simplefs_open("/file01", O_RDONLY, 0);
 
     assert(simplefs_write(fd, buf, 1) == ERR_INVALID_FD_MODE);
+};
+
+void Write_DirectoryFd_ErrorCodeReturned() {
+    char buf[] = {'X'};
+    int fd = simplefs_open("/foo_dir", O_RDWR, O_CREAT);
+    assert(fd >= 0);
+
+    assert(simplefs_write(fd, buf, 1) == ERR_WRITE_WITH_DIR_FD_DISALLOWED);
+
+    simplefs_close(fd);
 };
 
 void Write_NewFile_DataWritten() {
