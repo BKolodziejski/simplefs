@@ -22,32 +22,34 @@ void Unlink_Directory_DirectoryRemoved() {
 
     assert(simplefs_unlink("/foo_dir/rm_dir") == 0);
 
-    assert(simplefs_open("/foo_dir/rm_dir", 0) == ERR_FILENAME_NOT_FOUND);
+    assert(simplefs_open("/foo_dir/rm_dir", 0, 0) == ERR_FILENAME_NOT_FOUND);
 }
 
 void Unlink_File_FileRemoved() {
-    simplefs_mkdir("/foo_dir/rm_file");
+    int fd = simplefs_open("/foo_dir/rm_file", O_RDWR, O_CREAT);
+    assert(fd >= 0);
+    simplefs_close(fd);
 
     assert(simplefs_unlink("/foo_dir/rm_file") == 0);
 
-    assert(simplefs_open("/foo_dir/rm_file", 0) == ERR_FILENAME_NOT_FOUND);
+    assert(simplefs_open("/foo_dir/rm_file", 0, 0) == ERR_FILENAME_NOT_FOUND);
 }
 
 void Unlink_FileOpened_ErrorCodeReturned() {
-    int fd = simplefs_open("/foo_dir/temp_file", 0);
+    int fd = simplefs_open("/foo_dir/temp_file", O_RDWR, O_CREAT);
 
     assert(simplefs_unlink("/foo_dir/temp_file") < 0);
 
-    // TODO simplefs_close(fd)
+    simplefs_close(fd);
 }
 
 void Unlink_DirectoryHasOpenedFiles_ErrorCodeReturned() {
     simplefs_mkdir("/foo_dir/tmp_dir");
-    int fd = simplefs_open("/foo_dir/tmp_dir/temp_file", 0);
+    int fd = simplefs_open("/foo_dir/tmp_dir/temp_file", 0, O_CREAT);
 
     assert(simplefs_unlink("/foo_dir/tmp_dir") < 0);
 
-    // TODO simplefs_close(fd)
+    simplefs_close(fd);
 }
 
 
