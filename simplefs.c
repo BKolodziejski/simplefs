@@ -49,13 +49,25 @@ int simplefs_open(char* path, int mode, int flags) {
     initializeIfNeeded();
     // TODO: semaphores
 
+    if(strlen(path) > SIMPLEFS_MAX_PATH_LENGTH) {
+        return ERR_PATH_TOO_LONG;
+    }
+
+
     if(flags & O_CREAT && evaluatePath(path) == SIMPLEFS_INODE_COUNT) {
         if(mode == O_RDONLY) {
             return ERR_INVALID_FD_MODE;
         }
 
         char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
-        SimplefsIndex index = evaluatePathForParent(path, filename);
+        int lastNotedSlashOffset = getFilename(path, filename);
+        if(lastNotedSlashOffset == ERR_FILENAME_TOO_LONG) {
+            return ERR_FILENAME_TOO_LONG;
+        }
+        SimplefsIndex index = evaluatePathForParent(path, lastNotedSlashOffset);
+        if(index == SIMPLEFS_INODE_COUNT) {
+            return ERR_DIRECTORY_NOT_FOUND;
+        }
         int status;
         if((status = createFile(index, filename))) {
             return status;
@@ -94,7 +106,11 @@ int simplefs_unlink(char* path) {
     initializeIfNeeded();
     // TODO: semaphores
     char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
-    SimplefsIndex index = evaluatePathForParent(path, filename);
+    int lastNotedSlashOffset = getFilename(path, filename);
+    if(lastNotedSlashOffset == ERR_FILENAME_TOO_LONG) {
+        return ERR_FILENAME_TOO_LONG;
+    }
+    SimplefsIndex index = evaluatePathForParent(path, lastNotedSlashOffset);
     if (index == SIMPLEFS_INODE_COUNT) {
         return ERR_FILENAME_NOT_FOUND;
     }
@@ -104,8 +120,15 @@ int simplefs_unlink(char* path) {
 int simplefs_mkdir(char* path) {
     initializeIfNeeded();
     // TODO: semaphores
+    if(evaluatePath(path) != SIMPLEFS_INODE_COUNT) {
+        return ERR_FILE_ALREADY_EXISTS;
+    }
     char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
-    SimplefsIndex index = evaluatePathForParent(path, filename);
+    int lastNotedSlashOffset = getFilename(path, filename);
+    if(lastNotedSlashOffset == ERR_FILENAME_TOO_LONG) {
+        return ERR_FILENAME_TOO_LONG;
+    }
+    SimplefsIndex index = evaluatePathForParent(path, lastNotedSlashOffset);
     if (index == SIMPLEFS_INODE_COUNT) {
         return ERR_FILENAME_NOT_FOUND;
     }
@@ -123,6 +146,10 @@ int simplefs_read(int fd, char* buf, int len) {
         return ERR_INVALID_FD_MODE;
     }
 
+    if(len < 0) {
+        return ERR_INVALID_LEN;
+    }
+
     return readFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
 }
 
@@ -136,7 +163,7 @@ int simplefs_write(int fd, char* buf, int len) {
         return ERR_INVALID_FD_MODE;
     }
 
-    return writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
+    return writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len, 1);
 }
 
 
