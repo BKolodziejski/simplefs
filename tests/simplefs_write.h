@@ -34,6 +34,7 @@ void Write_ReadOnlyFd_ErrorCodeReturned() {
 
 void Write_NewFile_DataWritten() {
     int fd = simplefs_open("/file40", 0);
+    assert(fd >= 0);
     char buf[] = {'X', 'Y', 'Z'};
     int bufLen = 3;
 
@@ -119,7 +120,7 @@ void Write_TwoFiles_EachFilesDataWritten() {
 
 
     assert(simplefs_write(fd1, buf1, buf1Len) == buf1Len);
-    assert(simplefs_write(fd1, buf2, buf2Len) == buf2Len);
+    assert(simplefs_write(fd2, buf2, buf2Len) == buf2Len);
 
     assert(simplefs_read(fd1, readBuf1, buf1Len) == buf1Len);
     for (int i = 0; i < buf1Len; i++) {
