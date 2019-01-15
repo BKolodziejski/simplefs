@@ -120,6 +120,9 @@ int simplefs_unlink(char* path) {
 int simplefs_mkdir(char* path) {
     initializeIfNeeded();
     // TODO: semaphores
+    if(evaluatePath(path) != SIMPLEFS_INODE_COUNT) {
+        return ERR_FILE_ALREADY_EXISTS;
+    }
     char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
     int lastNotedSlashOffset = getFilename(path, filename);
     if(lastNotedSlashOffset == ERR_FILENAME_TOO_LONG) {
@@ -141,6 +144,10 @@ int simplefs_read(int fd, char* buf, int len) {
     }
     if(fdToData[fd].mode != O_RDONLY && fdToData[fd].mode != O_RDWR) {
         return ERR_INVALID_FD_MODE;
+    }
+
+    if(len < 0) {
+        return ERR_INVALID_LEN;
     }
 
     return readFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);

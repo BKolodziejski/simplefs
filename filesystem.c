@@ -149,7 +149,7 @@ int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
     }
     uint64_t remainingSizeInLastBlock = SIMPLEFS_BLOCK_SIZE - (currentSize % SIMPLEFS_BLOCK_SIZE);
     if((newSize - currentSize) <= remainingSizeInLastBlock) {
-        return 1;
+        return 0;
     }
     return (int) ceil((double)(newSize - currentSize - remainingSizeInLastBlock) / SIMPLEFS_BLOCK_SIZE);
 }
