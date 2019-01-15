@@ -370,35 +370,70 @@ int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
     return ERR_MAX_FILES_IN_DIR_REACHED;
 }
 
+/**
+ * @param parentDirInodeIndex
+ * @param fileName name of the file or directory to unlink
+ * @return 0 - OK; ERR_FILENAME_NOT_FOUND - filename doesn't exist in directory;
+ *         ERR_RESOURCE_BUSY - parent directory inode or file inode locked;
+ */
 int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
+    if (lockInode(parentDirInodeIndex)) {
+        return ERR_RESOURCE_BUSY;
+    }
+    // entered parent dir inode critical section
 
     Directory parentDir = {};
     readFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
 
-    SimplefsIndex inodeIndex = SIMPLEFS_INODE_COUNT;
+    int fileIndex = -1;
 
-    uint8_t isDirectory = 0;
-
+    // find file inode in directory by filename
     for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (parentDir.files[i].isUsed && strcmp(parentDir.files[i].filename, fileName) == 0) {
-            parentDir.files[i].isUsed = 0;
-            inodeIndex = parentDir.files[i].inodeIndex;
-            writeFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory), 0);
+            fileIndex = i;
             break;
         }
     }
 
-    if (inodeIndex == SIMPLEFS_INODE_COUNT) {
+    if (fileIndex == -1) {
+        unlockInode(parentDirInodeIndex);
         return ERR_FILENAME_NOT_FOUND;
     }
 
+    SimplefsIndex inodeIndex = parentDir.files[fileIndex].inodeIndex; // inode of file to unlink // TODO fix SEGFAULT
+    if (lockInode(inodeIndex)) {
+        unlockInode(parentDirInodeIndex);
+        return ERR_RESOURCE_BUSY;
+    }
+    // entered file inode critical section
+
+    if (lockInodeTable()) {
+        unlockInode(inodeIndex);
+        unlockInode(parentDirInodeIndex);
+        return ERR_RESOURCE_BUSY;
+    }
+    // entered inode table critical section
+
+    if (lockBlockBitmap()) {
+        unlockInodeTable();
+        unlockInode(inodeIndex);
+        unlockInode(parentDirInodeIndex);
+        return ERR_RESOURCE_BUSY;
+    }
+    // entered block bitmap critical section
+
+    // Mark file as unused in parent dir
+    parentDir.files[fileIndex].isUsed = 0;
+    writeFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
+
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
-    Inode inode = {};
+
+    Inode inode = {}; // inode of file to unlink
     lseek(fsDescriptor, inodeIndexToPosition(inodeIndex), SEEK_SET);
     read(fsDescriptor, &inode, sizeof(Inode));
 
     if (inode.fileType == SIMPLEFS_FILETYPE_DIR) {
-        Directory dir = {};
+        Directory dir = {}; // directory to unlink
         readFile(inodeIndex, &dir, 0, sizeof(Directory));
         for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
             if (dir.files[i].isUsed && strcmp(dir.files[i].filename, "..") != 0 && strcmp(dir.files[i].filename, ".") != 0) {
@@ -407,9 +442,12 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
         }
     }
 
+    // Mark file inode as unused in inode table
     lseek(fsDescriptor, inodeIndexToPosition(inodeIndex), SEEK_SET);
     inode.isUsed = 0;
     write(fsDescriptor, &inode, sizeof(Inode));
+
+    // Mark file's blocks as unused in block bitmap
     int64_t remainingFileSize = inode.fileSize;
     SimplefsIndex currentBlockIndex = inode.firstBlockIndex;
     SimplefsIndex nextBlockIndex;
@@ -423,6 +461,12 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
         remainingFileSize -= SIMPLEFS_BLOCK_SIZE;
     } while (remainingFileSize > 0);
     close(fsDescriptor);
+
+    unlockBlockBitmap();
+    unlockInodeTable();
+    unlockInode(inodeIndex);
+    unlockInode(parentDirInodeIndex);
+
     return 0;
 }
 
@@ -483,6 +527,20 @@ void simplefsInit() {
     Directory child8 = {};
     readFile(ch8Idx, &child8, 0, sizeof(Directory));
 
+    unlinkFile(0, "child2");
+    SimplefsIndex index2 = evaluatePath("/child2/child8");
+
+
+    Directory root = {};
+    readFile(0, &root, 0, sizeof(Directory));
+    SimplefsIndex index = evaluatePath("/child2/child8");
+    char fname[65];
+    Directory root1 = {};
+    readFile(1, &root1, 0, sizeof(Directory));
+    Directory root2 = {};
+    readFile(2, &root2, 0, sizeof(Directory));
+    int lastNotedSlashOffset = getFilename("/child2/../child3/child8", fname);
+    SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", lastNotedSlashOffset);
     unlinkFile(0, "child2");
     SimplefsIndex index2 = evaluatePath("/child2/child8");
     close(fsDescriptor);

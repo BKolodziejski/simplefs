@@ -17,6 +17,10 @@ static sem_t* countingSem;
 static sem_t* blockBitmapSem;
 static sem_t* inodeTableSem;
 
+static uint8_t timesBlockBitmapLockedByMe = 0;
+static uint8_t timesInodeTableLockedByMe = 0;
+static uint8_t timesInodeLockedByMe[SIMPLEFS_INODE_COUNT] = {};
+
 static void initializeIfNeeded() {
     if (semaphoresInitialised) {
         return;
@@ -47,6 +51,10 @@ static int lockSem(sem_t* sem) {
 
 int lockInode(SimplefsIndex inodeIndex) {
     initializeIfNeeded();
+    if (timesInodeLockedByMe[inodeIndex] > 0) {
+        ++timesInodeLockedByMe[inodeIndex];
+        return 0;
+    }
 
     if (lockSem(countingSem) == SIMPLEFS_SEM_LOCK_FAILED) {
         return SIMPLEFS_SEM_ALL_BUSY;
@@ -65,39 +73,75 @@ int lockInode(SimplefsIndex inodeIndex) {
     }
 
     // entered inode critical section
+    timesInodeLockedByMe[inodeIndex] = 1;
     return 0;
 }
 
 int lockBlockBitmap() {
     initializeIfNeeded();
-    return lockSem(blockBitmapSem);
+    if (timesBlockBitmapLockedByMe > 0) {
+        ++timesBlockBitmapLockedByMe;
+        return 0;
+    }
+    int result = lockSem(blockBitmapSem);
+    if (result == 0) {
+        timesBlockBitmapLockedByMe = 1;
+    }
+    return result;
 }
 
 int lockInodeTable() {
     initializeIfNeeded();
-    return lockSem(inodeTableSem);
+    if (timesInodeTableLockedByMe > 0) {
+        ++timesInodeTableLockedByMe;
+        return 0;
+    }
+    int result = lockSem(inodeTableSem);
+    if (result == 0) {
+        timesInodeTableLockedByMe = 1;
+    }
+    return result;
 }
 
 void unlockInode(SimplefsIndex inodeIndex) {
     assert(semaphoresInitialised);
-    char semName[15];
-    getInodeSemaphoreName(semName, inodeIndex);
-    sem_t* inodeSem = sem_open(semName, O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 0);
-    sem_post(inodeSem);
-    // left inode critical section
+    assert(timesInodeLockedByMe[inodeIndex] > 0);
+    if (timesInodeLockedByMe[inodeIndex] == 1) {
+        char semName[15];
+        getInodeSemaphoreName(semName, inodeIndex);
+        sem_t* inodeSem = sem_open(semName, O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO, 0);
+        timesInodeLockedByMe[inodeIndex] = 0;
+        sem_post(inodeSem);
+        // left inode critical section
 
-    sem_close(inodeSem);
-    sem_unlink(semName);
+        sem_close(inodeSem);
+        sem_unlink(semName);
 
-    sem_post(countingSem);
-    // left counting-semaphore critical section
+        sem_post(countingSem);
+        // left counting-semaphore critical section
+    } else {
+        --timesInodeLockedByMe[inodeIndex];
+    }
 }
 
 void unlockBlockBitmap() {
     assert(semaphoresInitialised);
-    sem_post(blockBitmapSem);
+    assert(timesBlockBitmapLockedByMe > 0);
+    if (timesBlockBitmapLockedByMe == 1) {
+        timesBlockBitmapLockedByMe = 0;
+        sem_post(blockBitmapSem);
+    } else {
+        --timesBlockBitmapLockedByMe;
+    }
 }
+
 void unlockInodeTable() {
     assert(semaphoresInitialised);
-    sem_post(inodeTableSem);
+    assert(timesInodeTableLockedByMe > 0);
+    if (timesInodeTableLockedByMe == 1) {
+        timesInodeTableLockedByMe = 0;
+        sem_post(inodeTableSem);
+    } else {
+        --timesInodeTableLockedByMe;
+    }
 }
