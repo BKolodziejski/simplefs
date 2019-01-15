@@ -15,3 +15,8 @@ target_link_libraries(simplefs_unlink Threads::Threads)
 target_link_libraries(proc1 Threads::Threads)
 target_link_libraries(proc2 Threads::Threads)
 target_link_libraries(proc3 Threads::Threads)
+
+
+add_executable(simplefs-tests tests/main.c simplefs.h consts.h simplefs.c filesystem.c filesystem.h patheval.c patheval.h tests/simplefs_write.h tests/utils.h tests/simplefs_open.h tests/simplefs_mkdir.h tests/simplefs_chmode.h tests/simplefs_read.h sem.h sem.c)
+
+target_link_libraries(simplefs-tests Threads::Threads m)
