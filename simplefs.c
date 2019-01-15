@@ -43,15 +43,25 @@ static void initializeIfNeeded() {
     fdArrayInitialized = 1;
 }
 
-int simplefs_open(char* path, int mode) {
+int simplefs_open(char* path, int mode, int flags) {
     initializeIfNeeded();
     // TODO: semaphores
+
+    if(flags & O_CREAT && evaluatePath(path) == SIMPLEFS_INODE_COUNT) {
+        char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
+        SimplefsIndex index = evaluatePathForParent(path, filename);
+        int status;
+        if((status = createFile(index, filename))) {
+            return status;
+        };
+    }
+
     int fd = getNextFreeFd();
     if (fd == SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS) {
         return ERR_SIMPLEFS_TOO_MANY_FILES_OPEN;
     }
     fdToData[fd].inodeNumber = evaluatePath(path);
-    if (fdToData[fd].inodeNumber == ERR_FILENAME_NOT_FOUND) {
+    if (fdToData[fd].inodeNumber == SIMPLEFS_INODE_COUNT) {
         return ERR_FILENAME_NOT_FOUND;
     }
     fdToData[fd].isOpen = 1;

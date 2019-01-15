@@ -5,7 +5,7 @@
 #ifndef SIMPLEFS_SIMPLEFS_H
 #define SIMPLEFS_SIMPLEFS_H
 
-int simplefs_open(char* name, int mode);
+int simplefs_open(char* name, int mode, int flags);
 int simplefs_unlink(char* name);
 int simplefs_mkdir(char* name);
 int simplefs_read(int fd, char* buf, int len);
