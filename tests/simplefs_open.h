@@ -32,7 +32,7 @@ void Open_FileExistsParentInPath_FileOpened() {
     // TODO simplefs_close(fd)
 }
 
-void Open_FileameUsedAsDirInPath_ErrorCodeReturned() {
+void Open_FilenameUsedAsDirInPath_ErrorCodeReturned() {
     // TODO
     assert(simplefs_open("/foo_dir/bar_file/xxx", 0) < 0);
 
