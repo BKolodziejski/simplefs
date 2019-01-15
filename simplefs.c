@@ -5,6 +5,7 @@
 #include "consts.h"
 #include "filesystem.h"
 #include "patheval.h"
+#include "sem.h"
 
 typedef struct FdData {
     int isOpen;
@@ -26,7 +27,7 @@ static int getNextFreeFd() {
     return SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS;
 }
 
-void initializeIfNeeded() {
+static void initializeIfNeeded() {
     if (fdArrayInitialized) {
         return;
     }
@@ -76,6 +77,7 @@ int simplefs_mkdir(char* path) {
     if (index == SIMPLEFS_INODE_COUNT) {
         return ERR_FILENAME_NOT_FOUND;
     }
+
     return makeDir(index, filename);
 }
 
