@@ -4,20 +4,21 @@
 #include "../simplefs.h"
 #include "utils.h"
 #include <assert.h>
+#include <fcntl.h>
 
 void Write_UnopenedFd_ErrorCodeReturned() {
     char buf[] = {'X'};
-    assert(simplefs_write(10, buf, 1) == ERR_INVALID_FD);
+    assert(simplefs_write(100, buf, 1) == ERR_INVALID_FD);
 };
 
 void Write_ClosedFd_ErrorCodeReturned() {
     char buf[] = {'X'};
-    int fd = simplefs_open("/file01", 0);
+    int fd = simplefs_open("/file01", O_RDWR, O_CREAT);
     assert(fd >= 0);
 
-    // TODO simplefs_close(fd);
+    simplefs_close(fd);
 
-    // TODO assert(simplefs_write(10, buf, 1) == ERR_INVALID_FD);
+    assert(simplefs_write(fd, buf, 1) == ERR_INVALID_FD);
 };
 
 void Write_NegativeFd_ErrorCodeReturned() {
@@ -27,13 +28,16 @@ void Write_NegativeFd_ErrorCodeReturned() {
 
 void Write_ReadOnlyFd_ErrorCodeReturned() {
     char buf[] = {'X'};
-    // TODO int fd = simplefs_open("/file01", READ);
+    int fd = simplefs_open("/file01", O_CREAT, O_RDWR);
+    simplefs_close(fd);
 
-    // TODO assert(simplefs_write(-1, buf, 1) == ERR_INVALID_FD);
+    fd = simplefs_open("/file01", O_RDONLY, 0);
+
+    assert(simplefs_write(fd, buf, 1) == ERR_INVALID_FD_MODE);
 };
 
 void Write_NewFile_DataWritten() {
-    int fd = simplefs_open("/file40", 0);
+    int fd = simplefs_open("/file40", O_RDWR, O_CREAT);
     assert(fd >= 0);
     char buf[] = {'X', 'Y', 'Z'};
     int bufLen = 3;
@@ -42,6 +46,23 @@ void Write_NewFile_DataWritten() {
 
     char readBuf[bufLen];
 
+    assert(simplefs_read(fd, readBuf, bufLen) == bufLen);
+    for (int i = 0; i < bufLen; i++) {
+        assert(buf[i] == readBuf[i]);
+    }
+}
+
+void Write_NewFileWriteOnlyMode_DataWritten() {
+    int fd = simplefs_open("/file40", O_WRONLY, O_CREAT);
+    assert(fd >= 0);
+    char buf[] = {'X', 'Y', 'Z'};
+    int bufLen = 3;
+
+    assert(simplefs_write(fd, buf, bufLen) == bufLen);
+    simplefs_close(fd);
+
+    fd = simplefs_open("/file01", O_RDONLY, 0);
+    char readBuf[bufLen];
     assert(simplefs_read(fd, readBuf, bufLen) == bufLen);
     for (int i = 0; i < bufLen; i++) {
         assert(buf[i] == readBuf[i]);
@@ -63,14 +84,14 @@ void Write_NewFileDataLargerThanBlockSize_DataWritten() {
     fclose(file);
     assert(bytesRead == fileSize);
 
-    int fd = simplefs_open("/file41", 0);
-    // TODO simplefs_close(fd);
+    int fd = simplefs_open("/file41", O_WRONLY, O_CREAT);
 
     int bytesWritten = simplefs_write(fd, buf, fileSize);
     assert(bytesWritten == fileSize);
+    simplefs_close(fd);
 
     __uint8_t readBuf[fileSize];
-    fd = simplefs_open("/file41", 0);
+    fd = simplefs_open("/file41", O_RDONLY, 0);
     assert(simplefs_read(fd, readBuf, fileSize) == fileSize);
 
 
@@ -78,18 +99,18 @@ void Write_NewFileDataLargerThanBlockSize_DataWritten() {
         assert(buf[i] == readBuf[i]);
     }
 
-    // TODO simplefs_close(fd);
+    simplefs_close(fd);
 }
 
 void Write_ExistingFileWithData_DataReplaced() {
-    int fd = simplefs_open("/file42", 0);
+    int fd = simplefs_open("/file42", O_RDWR, O_CREAT);
     char buf[] = {'U', 'W', 'X', 'Y', 'Z'};
     int bufLen = 5;
     simplefs_write(fd, buf, bufLen);
 
-    // TODO simplefs_close(fd);
+    simplefs_close(fd);
 
-    fd = simplefs_open("/file42", 0);
+    fd = simplefs_open("/file42", O_RDWR, 0);
     char buf2[] = {'A', 'B', 'C'};
     int buf2Len = 3;
     simplefs_write(fd, buf2, buf2Len);
@@ -105,12 +126,12 @@ void Write_ExistingFileWithData_DataReplaced() {
         assert(readBuf[i] == buf[i]);
     }
 
-    // TODO simplefs_close(fd);
+    simplefs_close(fd);
 }
 
 void Write_TwoFiles_EachFilesDataWritten() {
-    int fd1 = simplefs_open("/file46", 0);
-    int fd2 = simplefs_open("/file47", 0);
+    int fd1 = simplefs_open("/file46", O_RDWR, O_CREAT);
+    int fd2 = simplefs_open("/file47", O_RDWR, O_CREAT);
     char buf1[] = {'X', 'Y', 'Z'};
     char buf2[] = {'D', 'E', 'F', 'G'};
     int buf1Len = 3;
