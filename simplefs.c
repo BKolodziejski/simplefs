@@ -11,6 +11,7 @@ typedef struct FdData {
     int isOpen;
     int inodeNumber;
     int filePosition;
+    int mode;
 } DescriptorData;
 
 static DescriptorData fdToData[SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS];
@@ -36,6 +37,7 @@ static void initializeIfNeeded() {
         fdToData[i].isOpen = 0;
         fdToData[i].inodeNumber = 0;
         fdToData[i].filePosition = 0;
+        fdToData[i].mode = 0;
     }
 
     simplefsInit();
@@ -48,6 +50,10 @@ int simplefs_open(char* path, int mode, int flags) {
     // TODO: semaphores
 
     if(flags & O_CREAT && evaluatePath(path) == SIMPLEFS_INODE_COUNT) {
+        if(mode == O_RDONLY) {
+            return ERR_INVALID_FD_MODE;
+        }
+
         char filename[SIMPLEFS_MAX_FILENAME_LENGTH + 1];
         SimplefsIndex index = evaluatePathForParent(path, filename);
         int status;
@@ -65,7 +71,23 @@ int simplefs_open(char* path, int mode, int flags) {
         return ERR_FILENAME_NOT_FOUND;
     }
     fdToData[fd].isOpen = 1;
+    fdToData[fd].mode = mode;
     return fd;
+}
+
+int simplefs_close(int fd) {
+    initializeIfNeeded();
+    // TODO: semaphores ?
+
+    if (!(fd >= 0 && fd < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS && fdToData[fd].isOpen)) {
+        return ERR_INVALID_FD;
+    }
+
+    fdToData[fd].isOpen = 0;
+    fdToData[fd].inodeNumber = 0;
+    fdToData[fd].filePosition = 0;
+    fdToData[fd].mode = 0;
+    return 0;
 }
 
 int simplefs_unlink(char* path) {
@@ -97,6 +119,9 @@ int simplefs_read(int fd, char* buf, int len) {
     if (!(fd >= 0 && fd < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS && fdToData[fd].isOpen)) {
         return ERR_INVALID_FD;
     }
+    if(fdToData[fd].mode != O_RDONLY && fdToData[fd].mode != O_RDWR) {
+        return ERR_INVALID_FD_MODE;
+    }
 
     return readFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
 }
@@ -106,6 +131,9 @@ int simplefs_write(int fd, char* buf, int len) {
     // TODO: semaphores
     if (!(fd >= 0 && fd < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS && fdToData[fd].isOpen)) {
         return ERR_INVALID_FD;
+    }
+    if(fdToData[fd].mode != O_WRONLY && fdToData[fd].mode != O_RDWR) {
+        return ERR_INVALID_FD_MODE;
     }
 
     return writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
