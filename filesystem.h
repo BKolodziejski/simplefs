@@ -51,7 +51,7 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name);
 
 int createFile(SimplefsIndex parentDirInodeIndex, char* name);
 
-int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len);
+int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len, uint8_t apiCall);
 
 
 #endif //SIMPLEFS_FILESYSTEM_H

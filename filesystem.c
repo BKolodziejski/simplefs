@@ -14,7 +14,7 @@
 #include "simplefs.h"
 #include "sem.h"
 
-int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len);
+int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len, uint8_t apiCall);
 
 static uint64_t blockIndexToBitmapPosition(SimplefsIndex blockIndex) ;
 
@@ -36,7 +36,7 @@ void createDefaultSimplefs() {
     uint8_t blockIsTaken = 1;
     write(fd, &blockIsTaken, sizeof(uint8_t));
     Directory emptyDir = {};
-    writeFile(ROOT_INODE_INDEX, &emptyDir, 0, sizeof(Directory));
+    writeFile(ROOT_INODE_INDEX, &emptyDir, 0, sizeof(Directory), 0);
     close(fd);
 }
 
@@ -155,10 +155,14 @@ int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
 }
 
 // TODO: handle writeFile() return values in all usages
-int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len) {
+int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len, u_int8_t apiCall) {
     // TODO handle fd = -1 !
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     Inode inode = getInode(fd, inodeIndex);
+
+    if(apiCall && inode.fileType == SIMPLEFS_FILETYPE_DIR) {
+        return ERR_WRITE_WITH_DIR_FD_DISALLOWED;
+    }
 
     int requiredNewBlocks = calculateRequiredNumberOfBlocks(inode.fileSize, len + startPos);
     SimplefsIndex reservedBlocks[requiredNewBlocks];
@@ -298,8 +302,8 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
             DirectoryRecord thisDir = {".", dir.files[i].inodeIndex, 1};
             emptyDir.files[0] = parent;
             emptyDir.files[1] = thisDir;
-            writeFile(dir.files[i].inodeIndex, &emptyDir, 0, sizeof(Directory));
-            writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
+            writeFile(dir.files[i].inodeIndex, &emptyDir, 0, sizeof(Directory), 0);
+            writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory), 0);
             close(fsDescriptor);
             unlockInode(parentDirInodeIndex);
             return 0;
@@ -326,7 +330,7 @@ int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
             }
             dir.files[i].inodeIndex = newFileInode;
             dir.files[i].isUsed = 1;
-            writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
+            writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory), 0);
             close(fsDescriptor);
             return 0;
         }
@@ -346,7 +350,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
         if (parentDir.files[i].isUsed && strcmp(parentDir.files[i].filename, fileName) == 0) {
             parentDir.files[i].isUsed = 0;
             inodeIndex = parentDir.files[i].inodeIndex;
-            writeFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
+            writeFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory), 0);
             break;
         }
     }

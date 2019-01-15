@@ -136,7 +136,7 @@ int simplefs_write(int fd, char* buf, int len) {
         return ERR_INVALID_FD_MODE;
     }
 
-    return writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
+    return writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len, 1);
 }
 
 
