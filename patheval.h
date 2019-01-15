@@ -8,6 +8,7 @@
 #include "filesystem.h"
 
 SimplefsIndex evaluatePath(char* path);
-SimplefsIndex evaluatePathForParent(char* path, char* childFileNameOutput);
+SimplefsIndex evaluatePathForParent(char* path, int lastNotedSlashOffset);
+int getFilename(char* path, char* childFileNameOutput);
 
 #endif //SIMPLEFS_PATHEVAL_H
