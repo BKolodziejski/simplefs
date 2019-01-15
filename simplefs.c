@@ -78,12 +78,7 @@ int simplefs_mkdir(char* path) {
         return ERR_FILENAME_NOT_FOUND;
     }
 
-    if (lockInode(index)) {
-        return ERR_RESOURCE_BUSY;
-    }
-    int res = makeDir(index, filename);
-    unlockInode(index);
-    return res;
+    return makeDir(index, filename);
 }
 
 int simplefs_read(int fd, char* buf, int len) {

@@ -270,6 +270,9 @@ int reserveBlocks(int howMany, SimplefsIndex* reserved) {
  * @return 0 - OK; ERR_NOT_ENOUGH_SPACE, ERR_RESOURCE_BUSY, ERR_MAX_FILES_IN_DIR_REACHED - errors;
  */
 int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
+    if (lockInode(parentDirInodeIndex)) {
+        return ERR_RESOURCE_BUSY;
+    }
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
     Directory dir;
     readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
@@ -280,25 +283,26 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
             int status;
             if ((status = reserveNextFreeInode(SIMPLEFS_FILETYPE_DIR, &newDirInode))) {
                 close(fsDescriptor);
+                unlockInode(parentDirInodeIndex);
                 return status;
             }
             dir.files[i].inodeIndex = newDirInode;
             dir.files[i].isUsed = 1;
-            // TODO do przegadania: na jakiej wysokości realizować wykluczanie?
-            //  writeFile może się nie powieźć, bo block bitmap będzie zajęta i w tym momencie trzeba by odkręcić rezerwację inode'a
-            writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
             Directory emptyDir;
             DirectoryRecord parent = {"..", parentDirInodeIndex, 1};
             DirectoryRecord thisDir = {".", dir.files[i].inodeIndex, 1};
             emptyDir.files[0] = parent;
             emptyDir.files[1] = thisDir;
             writeFile(dir.files[i].inodeIndex, &emptyDir, 0, sizeof(Directory));
+            writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
             close(fsDescriptor);
+            unlockInode(parentDirInodeIndex);
             return 0;
         }
     }
 
     close(fsDescriptor);
+    unlockInode(parentDirInodeIndex);
     return ERR_MAX_FILES_IN_DIR_REACHED;
 }
 
@@ -381,13 +385,15 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
 }
 
 void simplefsInit() {
+    remove(SIMPLEFS_PATH); // start with clean file system
+
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDONLY);
     if (fsDescriptor == UNIX_OPEN_FAILED_CODE) {
         createDefaultSimplefs();
     }
     // debug stuff
     makeDir(0, "child");
-    unlinkFile(0, "child");
+//    unlinkFile(0, "child");
     makeDir(0, "child2");
     makeDir(0, "child3");
     makeDir(0, "child4");
