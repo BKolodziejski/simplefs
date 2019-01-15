@@ -420,7 +420,8 @@ void simplefsInit() {
     readFile(1, &root1, 0, sizeof(Directory));
     Directory root2 = {};
     readFile(2, &root2, 0, sizeof(Directory));
-    SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", fname);
+    int lastNotedSlashOffset = getFilename("/child2/../child3/child8", fname);
+    SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", lastNotedSlashOffset);
     unlinkFile(0, "child2");
     SimplefsIndex index2 = evaluatePath("/child2/child8");
     close(fsDescriptor);
