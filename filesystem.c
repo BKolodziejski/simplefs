@@ -54,7 +54,7 @@ static uint64_t blockIndexToBitmapPosition(SimplefsIndex blockIndex) {
 
 static Inode getInode(int fd, SimplefsIndex index) {
     uint64_t inodePosition = inodeIndexToPosition(index);
-    Inode inode;
+    Inode inode = {};
     lseek(fd, inodePosition, SEEK_SET);
     read(fd, &inode, sizeof(Inode));
     return inode;
@@ -69,7 +69,7 @@ int reserveNextFreeInode(uint8_t type, SimplefsIndex* freeInode) {
     if (lockInodeTable()) {
         return ERR_RESOURCE_BUSY;
     }
-    Inode inode;
+    Inode inode = {};
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     for (SimplefsIndex i = 0; i < SIMPLEFS_INODE_COUNT; ++i) {
         read(fd, &inode, sizeof(Inode));
@@ -360,7 +360,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
     }
 
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
-    Inode inode;
+    Inode inode = {};
     lseek(fsDescriptor, inodeIndexToPosition(inodeIndex), SEEK_SET);
     read(fsDescriptor, &inode, sizeof(Inode));
 
@@ -401,27 +401,55 @@ void simplefsInit() {
         createDefaultSimplefs();
     }
     // debug stuff
-    makeDir(0, "child");
-    unlinkFile(0, "child");
-    makeDir(0, "child2");
-    makeDir(0, "child3");
-    makeDir(0, "child4");
-    makeDir(0, "child5");
-    makeDir(0, "child6");
-    makeDir(0, "child7");
-    makeDir(1, "child8");
-    makeDir(2, "child9");
 
-    Directory root = {};
-    readFile(0, &root, 0, sizeof(Directory));
-    SimplefsIndex index = evaluatePath("/child2/child8");
-    char fname[65];
-    Directory root1 = {};
-    readFile(1, &root1, 0, sizeof(Directory));
-    Directory root2 = {};
-    readFile(2, &root2, 0, sizeof(Directory));
-    int lastNotedSlashOffset = getFilename("/child2/../child3/child8", fname);
-    SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", lastNotedSlashOffset);
+    makeDir(0, "child");
+    Directory c1 = {};
+    readFile(1, &c1, 0, sizeof(Directory));
+
+    unlinkFile(0, "child");
+    Directory c2 = {};
+    readFile(1, &c2, 0, sizeof(Directory));
+
+    makeDir(0, "child2"); // 1 (inode number)
+    Directory c3 = {};
+    readFile(1, &c3, 0, sizeof(Directory));
+
+    makeDir(0, "child3"); // 2
+    Directory c4 = {};
+    readFile(1, &c4, 0, sizeof(Directory));
+
+    makeDir(0, "child4"); // 3
+    Directory c5 = {};
+    readFile(1, &c5, 0, sizeof(Directory));
+
+    makeDir(0, "child5");
+    Directory c6 = {};
+    readFile(1, &c6, 0, sizeof(Directory));
+
+    makeDir(0, "child6");
+    Directory c7 = {};
+    readFile(1, &c7, 0, sizeof(Directory));
+
+    makeDir(0, "child7"); // 6
+    Directory c8 = {};
+    readFile(1, &c8, 0, sizeof(Directory));
+
+    makeDir(1, "child8"); // 7 => /child2/child8
+    Directory c9 = {};
+    readFile(1, &c9, 0, sizeof(Directory));
+
+    makeDir(2, "child9"); // 8 => /child3/child9
+    Directory c10 = {};
+    readFile(1, &c10, 0, sizeof(Directory));
+
+    SimplefsIndex ch2Idx = evaluatePath("/child2/../child2");
+    Directory child2 = {};
+    readFile(ch2Idx, &child2, 0, sizeof(Directory));
+
+    SimplefsIndex ch8Idx = evaluatePath("/child2/../child2/child8");
+    Directory child8 = {};
+    readFile(ch8Idx, &child8, 0, sizeof(Directory));
+
     unlinkFile(0, "child2");
     SimplefsIndex index2 = evaluatePath("/child2/child8");
     close(fsDescriptor);
