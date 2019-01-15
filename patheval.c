@@ -9,7 +9,7 @@ static SimplefsIndex evaluatePathRecursive(SimplefsIndex currentInodeIndex, char
     if (currentToken == NULL) {
         return currentInodeIndex;
     }
-    Directory d;
+    Directory d = {};
     readFile(currentInodeIndex, &d, 0, sizeof(Directory));
     for (SimplefsIndex i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (d.files[i].isUsed && strcmp(currentToken, d.files[i].filename) == 0) {

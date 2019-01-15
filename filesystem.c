@@ -29,13 +29,13 @@ void createDefaultSimplefs() {
 
     ftruncate(fd, fileSystemContainerSize);
 
-    Inode root = {0, SIMPLEFS_FILETYPE_DIR, 1, 0, 0, 0};
+    Inode root = {0, SIMPLEFS_FILETYPE_DIR, 1, 0, ROOT_INODE_INDEX, 0};
     write(fd, &root, sizeof(Inode));
     // set first block to used by root
     lseek(fd, blockIndexToBitmapPosition(0), SEEK_SET);
     uint8_t blockIsTaken = 1;
     write(fd, &blockIsTaken, sizeof(uint8_t));
-    Directory emptyDir;
+    Directory emptyDir = {};
     writeFile(ROOT_INODE_INDEX, &emptyDir, 0, sizeof(Directory));
     close(fd);
 }
@@ -274,7 +274,7 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
         return ERR_RESOURCE_BUSY;
     }
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
-    Directory dir;
+    Directory dir = {};
     readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
     for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (!dir.files[i].isUsed) {
@@ -288,7 +288,7 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
             }
             dir.files[i].inodeIndex = newDirInode;
             dir.files[i].isUsed = 1;
-            Directory emptyDir;
+            Directory emptyDir = {};
             DirectoryRecord parent = {"..", parentDirInodeIndex, 1};
             DirectoryRecord thisDir = {".", dir.files[i].inodeIndex, 1};
             emptyDir.files[0] = parent;
@@ -308,7 +308,7 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
 
 int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
-    Directory dir;
+    Directory dir = {};
     readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
     for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (!dir.files[i].isUsed) {
@@ -330,7 +330,7 @@ int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
 
 int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
 
-    Directory parentDir;
+    Directory parentDir = {};
     readFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
 
     SimplefsIndex inodeIndex = SIMPLEFS_INODE_COUNT;
@@ -356,7 +356,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
     read(fsDescriptor, &inode, sizeof(Inode));
 
     if (inode.fileType == SIMPLEFS_FILETYPE_DIR) {
-        Directory dir;
+        Directory dir = {};
         readFile(inodeIndex, &dir, 0, sizeof(Directory));
         for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
             if (dir.files[i].isUsed && strcmp(dir.files[i].filename, "..") != 0 && strcmp(dir.files[i].filename, ".") != 0) {
@@ -393,7 +393,7 @@ void simplefsInit() {
     }
     // debug stuff
     makeDir(0, "child");
-//    unlinkFile(0, "child");
+    unlinkFile(0, "child");
     makeDir(0, "child2");
     makeDir(0, "child3");
     makeDir(0, "child4");
@@ -403,13 +403,13 @@ void simplefsInit() {
     makeDir(1, "child8");
     makeDir(2, "child9");
 
-    Directory root;
+    Directory root = {};
     readFile(0, &root, 0, sizeof(Directory));
     SimplefsIndex index = evaluatePath("/child2/child8");
     char fname[65];
-    Directory root1;
+    Directory root1 = {};
     readFile(1, &root1, 0, sizeof(Directory));
-    Directory root2;
+    Directory root2 = {};
     readFile(2, &root2, 0, sizeof(Directory));
     SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", fname);
     unlinkFile(0, "child2");
