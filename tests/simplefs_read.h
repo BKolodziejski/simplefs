@@ -11,20 +11,21 @@ void Read_UnopenedFd_ErrorCodeReturned() {
 
 void Read_ClosedFd_ErrorCodeReturned() {
     char buf[1];
-    int fd = simplefs_open("/file01", 0);
+    int fd = simplefs_open("/file01", O_RDWR, O_CREAT);
     assert(fd >= 0);
 
-    // TODO simplefs_close(fd);
+    simplefs_close(fd);
 
-    assert(simplefs_read(10, buf, 1) == ERR_INVALID_FD);
+    assert(simplefs_read(fd, buf, 1) == ERR_INVALID_FD);
 };
 
 void Read_WriteOnlyFd_ErrorCodeReturned() {
     char buf[1];
-    int fd = simplefs_open("/foo_dir/bar_file", 0);
+    int fd = simplefs_open("/foo_dir/bar_file", O_WRONLY, 0);
 
-    // todo error code
-    assert(simplefs_read(fd, buf, 1) < 0);
+    assert(simplefs_read(fd, buf, 1) == ERR_INVALID_FD_MODE);
+
+    simplefs_close(fd);
 };
 
 void Read_NegativeFd_ErrorCodeReturned() {
@@ -34,26 +35,33 @@ void Read_NegativeFd_ErrorCodeReturned() {
 
 void Read_NegativeLen_ErrorCodeReturned() {
     char buf[1];
-    int fd = simplefs_open("/foo_dir/bar_file", 0);
+    int fd = simplefs_open("/foo_dir/file02", O_RDONLY, 0);
 
-    // todo error code
-    assert(simplefs_read(fd, buf, -1) < 0);
+    assert(simplefs_read(fd, buf, -1) == ERR_INVALID_LEN);
+
+    simplefs_close(fd);
+};
+
+void Read_File_DataRead() {
+    char buf[4];
+    int fd = simplefs_open("/foo_dir/file02", 0, 0);
+
+    assert(simplefs_read(fd, buf, 4) == 4);
+    assert(buf[0] == 'L');
+    assert(buf[1] == 'o');
+    assert(buf[2] == 'r');
+    assert(buf[3] == 'e');
 };
 
 void Read_ReadOnlyFile_DataRead() {
     char buf[4];
-    int fd = simplefs_open("/foo_dir/file03", 0);
+    int fd = simplefs_open("/foo_dir/file03", 0, 0);
 
     assert(simplefs_read(fd, buf, 4) == 4);
-    // todo verify contents
-};
-
-void Read_ReadFile_DataRead() {
-    char buf[4];
-    int fd = simplefs_open("/foo_dir/file02", 0);
-
-    assert(simplefs_read(fd, buf, 4) == 4);
-    // todo verify contents
+    assert(buf[0] == 'a');
+    assert(buf[1] == 'b');
+    assert(buf[2] == 'c');
+    assert(buf[3] == 'd');
 };
 
 
