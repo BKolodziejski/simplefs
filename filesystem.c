@@ -148,11 +148,15 @@ int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
         return 0;
     }
     uint64_t remainingSizeInLastBlock = SIMPLEFS_BLOCK_SIZE - (currentSize % SIMPLEFS_BLOCK_SIZE);
+    if((newSize - currentSize) <= remainingSizeInLastBlock) {
+        return 1;
+    }
     return (int) ceil((double)(newSize - currentSize - remainingSizeInLastBlock) / SIMPLEFS_BLOCK_SIZE);
 }
 
 // TODO: handle writeFile() return values in all usages
 int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len) {
+    // TODO handle fd = -1 !
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     Inode inode = getInode(fd, inodeIndex);
 
@@ -221,6 +225,7 @@ int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t l
         write(fd, &inode, sizeof(Inode));
     }
     close(fd);
+    return currentBufferOffset;
 }
 
 /**
