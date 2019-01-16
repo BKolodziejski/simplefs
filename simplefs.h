@@ -25,6 +25,7 @@ int simplefs_write(int fd, char* buf, int len);
 #define ERR_INVALID_LEN -11
 #define ERR_FILE_ALREADY_EXISTS -12
 #define ERR_WRITE_WITH_DIR_FD_DISALLOWED -14
+#define ERR_FILE_CREATED_RESOURCE_BUSY -15
 #define ERR_CANNOT_OPEN_CONTAINER 200
 
 #endif //SIMPLEFS_SIMPLEFS_H
