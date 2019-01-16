@@ -13,6 +13,13 @@ void Open_DirectoryDoesNotExist_ErrorCodeReturned() {
     assert(simplefs_open("/non_exist_dir/file", O_RDWR, O_CREAT) == ERR_DIRECTORY_NOT_FOUND);
 }
 
+void Open_Create_FileCreated() {
+    int fd = simplefs_open("/foo_dir/new_file", O_RDWR, O_CREAT);
+    assert(fd >= 0);
+
+    simplefs_close(fd);
+}
+
 void Open_FileExists_FileOpened() {
     int fd = simplefs_open("/foo_dir/bar_file", O_RDONLY, 0);
     assert(fd >= 0);

@@ -41,6 +41,7 @@ int main() {
     Open_FileDoesNotExist_ErrorCodeReturned();
     Open_DirectoryDoesNotExist_ErrorCodeReturned();
     Open_FileExists_FileOpened();
+    Open_Create_FileCreated();
     Open_FileExistsParentInPath_FileOpened();
     Open_FilenameUsedAsDirInPath_ErrorCodeReturned();
     Open_TooLongFilename_ErrorCodeReturned();
