@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 #include "consts.h"
 #include "filesystem.h"
 #include "patheval.h"
@@ -52,6 +53,10 @@ void debugPrint() {
 
 void createDefaultSimplefs() {
     int fd = open(SIMPLEFS_PATH, O_WRONLY | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
+
+    if(fd == UNIX_OPEN_FAILED_CODE) {
+        exit(ERR_CANNOT_OPEN_CONTAINER);
+    }
 
     int fileSystemContainerSize = SIMPLEFS_INODE_COUNT * sizeof(Inode)
                                   + SIMPLEFS_BLOCK_COUNT * sizeof(uint8_t)
@@ -362,6 +367,7 @@ int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
             return 0;
         }
     }
+    return ERR_MAX_FILES_IN_DIR_REACHED;
 }
 
 int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
