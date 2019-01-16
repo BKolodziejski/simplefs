@@ -46,6 +46,15 @@ void Write_DirectoryFd_ErrorCodeReturned() {
     simplefs_close(fd);
 };
 
+void Write_ReadOnlyFile_ErrorCodeReturned() {
+    int fd = simplefs_open("/foo_dir/file03", O_RDWR, O_CREAT);
+    assert(fd >= 0);
+    char buf[] = {'X', 'Y', 'Z'};
+    int bufLen = 3;
+
+    assert(simplefs_write(fd, buf, bufLen) == ERR_ACCESS_DENIED);
+}
+
 void Write_NewFile_DataWritten() {
     int fd = simplefs_open("/file40", O_RDWR, O_CREAT);
     assert(fd >= 0);

@@ -11,6 +11,11 @@ int simplefs_unlink(char* name);
 int simplefs_mkdir(char* name);
 int simplefs_read(int fd, char* buf, int len);
 int simplefs_write(int fd, char* buf, int len);
+int simplefs_chmode(char *name, int mode);
+
+#define SFS_READ 1
+#define SFS_WRITE 2
+#define SFS_READ_WRITE 2
 
 #define ERR_SIMPLEFS_TOO_MANY_FILES_OPEN -1
 #define ERR_INVALID_FD -2
@@ -27,5 +32,7 @@ int simplefs_write(int fd, char* buf, int len);
 #define ERR_WRITE_WITH_DIR_FD_DISALLOWED -14
 #define ERR_FILE_CREATED_RESOURCE_BUSY -15
 #define ERR_CANNOT_OPEN_CONTAINER 200
+#define ERR_INVALID_ACCESS_MODE -16
+#define ERR_ACCESS_DENIED -17
 
 #endif //SIMPLEFS_SIMPLEFS_H

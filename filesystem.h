@@ -43,7 +43,7 @@ void createDefaultSimplefs();
 
 void simplefsInit();
 
-uint64_t readFile(SimplefsIndex inodeIndex, void* whereTo, uint32_t startPos, uint32_t len);
+long int readFile(SimplefsIndex inodeIndex, void* whereTo, uint32_t startPos, uint32_t len, uint8_t apiCall);
 
 int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName);
 
@@ -52,6 +52,8 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name);
 int createFile(SimplefsIndex parentDirInodeIndex, char* name, SimplefsIndex* createdFileInodeIndex);
 
 int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len, uint8_t apiCall);
+
+int changeMode(SimplefsIndex inodeIndex, int mode);
 
 
 #endif //SIMPLEFS_FILESYSTEM_H

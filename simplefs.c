@@ -166,7 +166,7 @@ int simplefs_read(int fd, char* buf, int len) {
         return ERR_INVALID_LEN;
     }
 
-    uint64_t bytesRead = readFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
+    uint64_t bytesRead = readFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len, 1);
     fdToData[fd].filePosition += bytesRead;
     return bytesRead;
 }
@@ -183,6 +183,21 @@ int simplefs_write(int fd, char* buf, int len) {
     int bytesWritten = writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len, 1);
     fdToData[fd].filePosition += bytesWritten;
     return bytesWritten;
+}
+
+int simplefs_chmode(char *path, int mode) {
+    initializeIfNeeded();
+
+    if(mode != SFS_READ && mode != SFS_WRITE && mode != SFS_READ_WRITE) {
+        return ERR_INVALID_ACCESS_MODE;
+    }
+
+    SimplefsIndex fileInode = evaluatePath(path);
+    if (fileInode == SIMPLEFS_INODE_COUNT) {
+        return ERR_FILENAME_NOT_FOUND;
+    }
+
+    return changeMode(fileInode ,mode);
 }
 
 

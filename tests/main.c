@@ -15,11 +15,12 @@ int main() {
 
     simplefs_mkdir("/foo_dir");
     simplefs_open("/foo_dir/bar_file", O_RDWR, O_CREAT); // create file
+    simplefs_open("/foo_dir/chmode_test_file", O_RDWR, O_CREAT); // create file
 
     //write data to files
     writeFileToSimpleFs("../tests/test-files/file02", "/foo_dir/file02");
     writeFileToSimpleFs("../tests/test-files/file03", "/foo_dir/file03");
-    //simplefs_chmode("/foo_dir/file03", READ only)
+    simplefs_chmode("/foo_dir/file03", SFS_READ);
 
     // simplefs_write
     Write_NegativeFd_ErrorCodeReturned();
@@ -27,6 +28,7 @@ int main() {
     Write_ClosedFd_ErrorCodeReturned();
     Write_ReadOnlyFd_ErrorCodeReturned();
     Write_DirectoryFd_ErrorCodeReturned();
+    Write_ReadOnlyFile_ErrorCodeReturned();
     Write_NewFile_DataWritten();
     Write_NewFileDataLargerThanBlockSize_DataWritten();
     Write_ExistingFileWithData_DataReplaced();
@@ -49,7 +51,6 @@ int main() {
     //Open_ReachTooManyFilesOpenLimit_ErrorCodeReturned();
     //Open_ReachInodeCountLimit_ErrorCodeReturned();
 
-
     // simplefs_read
     Read_UnopenedFd_ErrorCodeReturned();
     Read_ClosedFd_ErrorCodeReturned();
@@ -58,6 +59,7 @@ int main() {
     Read_NegativeLen_ErrorCodeReturned();
     Read_File_DataRead();
     Read_ReadOnlyFile_DataRead();
+    Read_WriteOnlyFile_ErrorCodeReturned();
 
 
     // simplefs_mkdir
@@ -78,17 +80,11 @@ int main() {
     //Unlink_FileOpened_ErrorCodeReturned();
     //Unlink_DirectoryHasOpenedFiles_ErrorCodeReturned();
 
-    // TODO chmode
-/*
     // simplefs_chmode
-    Chmode_NonExistingDirectory_ErrorCodeReturned();
     Chmode_NonExistingFile_ErrorCodeReturned();
-    Chmode_FileOpened_ErrorCodeReturned();
     Chmode_SetFileReadOnly_ModeChanged();
     Chmode_SetFileReadWrite_ModeChanged();
-    Chmode_SetDirectorReadOnly_ModeChanged();
-    Chmode_SetDirectorReadWrite_ModeChanged();
-*/
+    Chmode_SetFileWriteOnly_ModeChanged();
 
     system("rm ../tests/test-output/file02");
     system("rm ../tests/test-output/file03");

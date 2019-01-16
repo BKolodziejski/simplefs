@@ -109,6 +109,7 @@ int reserveNextFreeInode(uint8_t type, SimplefsIndex* freeInode) {
             inode.isUsed = 1;
             inode.fileType = type;
             inode.fileSize = 0;
+            inode.accesses = SFS_READ_WRITE;
             int status;
             if ((status = reserveBlocks(1, &inode.firstBlockIndex))) {
                 close(fd);
@@ -127,10 +128,14 @@ int reserveNextFreeInode(uint8_t type, SimplefsIndex* freeInode) {
     return ERR_NOT_ENOUGH_SPACE;
 }
 
-uint64_t readFile(SimplefsIndex inodeIndex, void* whereTo, uint32_t startPos, uint32_t len) {
+long int readFile(SimplefsIndex inodeIndex, void* whereTo, uint32_t startPos, uint32_t len, u_int8_t apiCall) {
     uint32_t currentBufferOffset = 0;
     int fd = open(SIMPLEFS_PATH, O_RDONLY);
     Inode inode = getInode(fd, inodeIndex);
+    if(apiCall && (inode.accesses != SFS_READ && inode.accesses != SFS_READ_WRITE)) {
+        close(fd);
+        return ERR_ACCESS_DENIED;
+    }
     uint64_t remainingSizeToRead = len < inode.fileSize ? len : inode.fileSize;
     uint64_t readDataSize = remainingSizeToRead;
     uint64_t currentFileSystemPos = blockIndexToPosition(inode.firstBlockIndex);
@@ -188,12 +193,17 @@ int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
 
 // TODO: handle writeFile() return values in all usages
 int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len, u_int8_t apiCall) {
-    // TODO handle fd = -1 !
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     Inode inode = getInode(fd, inodeIndex);
 
     if(apiCall && inode.fileType == SIMPLEFS_FILETYPE_DIR) {
+        close(fd);
         return ERR_WRITE_WITH_DIR_FD_DISALLOWED;
+    }
+
+    if(apiCall && (inode.accesses != SFS_WRITE && inode.accesses != SFS_READ_WRITE)) {
+        close(fd);
+        return ERR_ACCESS_DENIED;
     }
 
     int requiredNewBlocks = calculateRequiredNumberOfBlocks(inode.fileSize, len + startPos);
@@ -305,6 +315,17 @@ int reserveBlocks(int howMany, SimplefsIndex* reserved) {
     return 0;
 }
 
+int changeMode(SimplefsIndex inodeIndex, int mode) {
+    int fd = open(SIMPLEFS_PATH, O_RDWR);
+    Inode inode = getInode(fd, inodeIndex);
+    inode.accesses = (uint8_t) mode;
+
+    lseek(fd, inodeIndexToPosition(inodeIndex), SEEK_SET);
+    write(fd, &inode, sizeof(Inode));
+    close(fd);
+    return 0;
+}
+
 /**
  * @param parentDirInodeIndex
  * @param name name of the new directory
@@ -316,7 +337,7 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
     }
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
     Directory dir = {};
-    readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
+    readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory), 0);
     for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (!dir.files[i].isUsed) {
             strcpy(dir.files[i].filename, name);
@@ -353,7 +374,7 @@ int createFile(SimplefsIndex parentDirInodeIndex, char* name, SimplefsIndex* cre
     }
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
     Directory dir = {};
-    readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
+    readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory), 0);
     for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
         if (!dir.files[i].isUsed) {
             strcpy(dir.files[i].filename, name);
@@ -395,7 +416,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
     // entered parent dir inode critical section
 
     Directory parentDir = {};
-    readFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
+    readFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory), 0);
 
     int fileIndex = -1;
 
@@ -446,7 +467,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
 
     if (inode.fileType == SIMPLEFS_FILETYPE_DIR) {
         Directory dir = {}; // directory to unlink
-        readFile(inodeIndex, &dir, 0, sizeof(Directory));
+        readFile(inodeIndex, &dir, 0, sizeof(Directory), 0);
         for (int i = 0; i < SIMPLEFS_MAX_FILES_IN_DIR; ++i) {
             if (dir.files[i].isUsed && strcmp(dir.files[i].filename, "..") != 0 && strcmp(dir.files[i].filename, ".") != 0) {
                 unlinkFile(inodeIndex, dir.files[i].filename);
@@ -493,11 +514,11 @@ void simplefsInit() {
     // debug stuff
     makeDir(0, "child");
     Directory c1 = {};
-    readFile(1, &c1, 0, sizeof(Directory));
+    readFile(1, &c1, 0, sizeof(Directory), 0);
 
     unlinkFile(0, "child");
     Directory c2 = {};
-    readFile(1, &c2, 0, sizeof(Directory));
+    readFile(1, &c2, 0, sizeof(Directory), 0);
 
     makeDir(0, "child2"); // 1 (inode number)
     makeDir(0, "child3"); // 2
@@ -508,29 +529,29 @@ void simplefsInit() {
 
     makeDir(1, "child8"); // 7 => /child2/child8
     Directory c9 = {};
-    readFile(1, &c9, 0, sizeof(Directory));
+    readFile(1, &c9, 0, sizeof(Directory), 0);
 //    debugPrint();
 
     makeDir(2, "child9"); // 8 => /child3/child9
     Directory c10 = {};
-    readFile(1, &c10, 0, sizeof(Directory));
+    readFile(1, &c10, 0, sizeof(Directory), 0);
 //    debugPrint();
 
     SimplefsIndex ch2Idx = evaluatePath("/child2/../child2");
     Directory child2 = {};
-    readFile(ch2Idx, &child2, 0, sizeof(Directory));
+    readFile(ch2Idx, &child2, 0, sizeof(Directory), 0);
 
     SimplefsIndex ch8Idx = evaluatePath("/child2/../child2/child8");
     Directory child8 = {};
-    readFile(ch8Idx, &child8, 0, sizeof(Directory));
+    readFile(ch8Idx, &child8, 0, sizeof(Directory), 0);
 
     Directory root = {};
-    readFile(0, &root, 0, sizeof(Directory));
+    readFile(0, &root, 0, sizeof(Directory), 0);
     char fname[65];
     Directory root1 = {};
-    readFile(1, &root1, 0, sizeof(Directory));
+    readFile(1, &root1, 0, sizeof(Directory), 0);
     Directory root2 = {};
-    readFile(2, &root2, 0, sizeof(Directory));
+    readFile(2, &root2, 0, sizeof(Directory), 0);
     int lastNotedSlashOffset = getFilename("/child2/../child3/child8", fname);
     SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", lastNotedSlashOffset);
 
