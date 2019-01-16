@@ -63,9 +63,31 @@ void Write_NewFile_DataWritten() {
 
     assert(simplefs_write(fd, buf, bufLen) == bufLen);
 
+    simplefs_close(fd);
+    fd = simplefs_open("/file40", O_RDONLY, 0);
     char readBuf[bufLen];
 
     assert(simplefs_read(fd, readBuf, bufLen) == bufLen);
+    for (int i = 0; i < bufLen; i++) {
+        assert(buf[i] == readBuf[i]);
+    }
+}
+
+void Write_WriteTwice_DataWritten() {
+    int fd = simplefs_open("/file90", O_RDWR, O_CREAT);
+    assert(fd >= 0);
+    char buf[] = {'X', 'Y', 'Z'};
+    int bufLen = 3;
+
+    assert(simplefs_write(fd, buf, 1) == 1);
+    assert(simplefs_write(fd, buf, 2) == 2);
+
+    simplefs_close(fd);
+    char readBuf[bufLen];
+    fd = simplefs_open("/file90", O_RDONLY, 0);
+
+    int read = simplefs_read(fd, readBuf, bufLen);
+    assert(read == bufLen);
     for (int i = 0; i < bufLen; i++) {
         assert(buf[i] == readBuf[i]);
     }
@@ -134,6 +156,8 @@ void Write_ExistingFileWithData_DataReplaced() {
     int buf2Len = 3;
     simplefs_write(fd, buf2, buf2Len);
 
+    simplefs_close(fd);
+    simplefs_open("/file42", O_RDONLY, 0);
     char readBuf[bufLen];
 
     assert(simplefs_read(fd, readBuf, bufLen) == (bufLen));
@@ -161,6 +185,10 @@ void Write_TwoFiles_EachFilesDataWritten() {
 
     assert(simplefs_write(fd1, buf1, buf1Len) == buf1Len);
     assert(simplefs_write(fd2, buf2, buf2Len) == buf2Len);
+    simplefs_close(fd1);
+    simplefs_close(fd2);
+    fd1 = simplefs_open("/file46", O_RDONLY, 0);
+    fd2 = simplefs_open("/file47", O_RDONLY, 0);
 
     assert(simplefs_read(fd1, readBuf1, buf1Len) == buf1Len);
     for (int i = 0; i < buf1Len; i++) {

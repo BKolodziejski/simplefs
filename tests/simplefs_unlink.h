@@ -38,14 +38,14 @@ void Unlink_File_FileRemoved() {
 void Unlink_FileOpened_ErrorCodeReturned() {
     int fd = simplefs_open("/foo_dir/temp_file", O_RDWR, O_CREAT);
 
-    assert(simplefs_unlink("/foo_dir/temp_file") < 0);
+    assert(simplefs_unlink("/foo_dir/temp_file") == ERR_RESOURCE_BUSY);
 
     simplefs_close(fd);
 }
 
 void Unlink_DirectoryHasOpenedFiles_ErrorCodeReturned() {
     simplefs_mkdir("/foo_dir/tmp_dir");
-    int fd = simplefs_open("/foo_dir/tmp_dir/temp_file", 0, O_CREAT);
+    int fd = simplefs_open("/foo_dir/tmp_dir/temp_file", O_RDWR, O_CREAT);
 
     assert(simplefs_unlink("/foo_dir/tmp_dir") < 0);
 

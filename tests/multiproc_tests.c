@@ -11,12 +11,20 @@ void readers() {
     newReaderChild();
     newReaderChild();
     newReaderChild();
+
+    while (waitpid(-1, NULL, 0) > 0);
 }
 
 void writers() {
     newWriterChild();
     newWriterChild();
     newWriterChild();
+
+    while (waitpid(-1, NULL, 0) > 0);
+
+    newWriterChild();
+
+    while (waitpid(-1, NULL, 0) > 0);
 }
 
 int main() {
@@ -26,11 +34,11 @@ int main() {
     printf("MAIN: starting processes\n");
 
 
-    readers();
-    //writers();
+    //readers();
+    writers();
 
 
-    while (waitpid(-1, NULL, 0) > 0);
+
 
     return 0;
 }
@@ -40,7 +48,7 @@ __pid_t newWriterChild() {
     if (pid == 0) {
         __pid_t myPid = getpid();
         printf("PID=%d started\n", myPid);
-        sleep(myPid % 5 + 1); // TODO
+        //sleep(myPid % 5 + 1); // TODO
 
         int writeStatus = writeFileToSimpleFsDebug("../tests/test-files/file02", "/file02", myPid);
 
@@ -58,12 +66,11 @@ __pid_t newReaderChild() {
     if (pid == 0) {
         __pid_t myPid = getpid();
         printf("PID=%d started\n", myPid);
-        sleep(myPid % 5 + 1); // TODO
         char dstFilename[] = "../tests/test-output/file02_00000000";
         sprintf(dstFilename, "../tests/test-output/file02_%d", myPid);
         printf("%s\n", dstFilename);
 
-        int readStatus = readFileFromSimpleFs("/file02", dstFilename, getFilesize("../tests/test-files/file02"));
+        int readStatus = readFileFromSimpleFsDebug("/file02", dstFilename, getFilesize("../tests/test-files/file02"), myPid);
 
         printf("PID=%d read status: %d\n", myPid, readStatus);
         printf("PID=%d finished\n", myPid);

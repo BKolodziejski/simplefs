@@ -32,6 +32,7 @@ int main() {
     Write_NewFile_DataWritten();
     Write_NewFileDataLargerThanBlockSize_DataWritten();
     Write_ExistingFileWithData_DataReplaced();
+    // Write_WriteTwice_DataWritten(); TODO
     Write_NewFileWriteOnlyMode_DataWritten();
     Write_TwoFiles_EachFilesDataWritten();
     // run separately
@@ -41,6 +42,7 @@ int main() {
     Open_FileDoesNotExist_ErrorCodeReturned();
     Open_DirectoryDoesNotExist_ErrorCodeReturned();
     Open_FileExists_FileOpened();
+    Open_Create_FileCreated();
     Open_FileExistsParentInPath_FileOpened();
     Open_FilenameUsedAsDirInPath_ErrorCodeReturned();
     Open_TooLongFilename_ErrorCodeReturned();
@@ -77,7 +79,7 @@ int main() {
     Unlink_Directory_DirectoryRemoved();
     Unlink_File_FileRemoved();
     // TODO disallow unlink when files are opened
-    //Unlink_FileOpened_ErrorCodeReturned();
+    Unlink_FileOpened_ErrorCodeReturned();
     //Unlink_DirectoryHasOpenedFiles_ErrorCodeReturned();
 
     // simplefs_chmode
