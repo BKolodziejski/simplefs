@@ -166,7 +166,9 @@ int simplefs_read(int fd, char* buf, int len) {
         return ERR_INVALID_LEN;
     }
 
-    return readFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
+    uint64_t bytesRead = readFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len);
+    fdToData[fd].filePosition += bytesRead;
+    return bytesRead;
 }
 
 int simplefs_write(int fd, char* buf, int len) {
@@ -178,7 +180,9 @@ int simplefs_write(int fd, char* buf, int len) {
         return ERR_INVALID_FD_MODE;
     }
 
-    return writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len, 1);
+    int bytesWritten = writeFile(fdToData[fd].inodeNumber, buf, fdToData[fd].filePosition, len, 1);
+    fdToData[fd].filePosition += bytesWritten;
+    return bytesWritten;
 }
 
 
