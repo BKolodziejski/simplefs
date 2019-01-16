@@ -68,4 +68,30 @@ int getFilesize(char *filename) {
 }
 
 
+int writeFileToSimpleFsDebug(const char *srcFilename, char *dstFilename, int executorId) {
+    FILE *file = fopen(srcFilename, "rb");
+    if (file == NULL) return ERROR_CANNOT_OPEN_SRC_FILE;
+
+    fseek(file, 0, SEEK_END);
+    long fileSize = ftell(file);
+    rewind(file);
+
+    __uint8_t buf[fileSize];
+    int bytesRead = fread(buf, 1, fileSize, file);
+    fclose(file);
+    if (bytesRead != fileSize) return ERROR_SRC_FILE_READ_FAILED;
+
+    int fd = simplefs_open(dstFilename, O_RDWR, O_CREAT);
+    if (fd < 0) return ERROR_WRITING_TEST_DATA_SIMPLEFS_OPEN_FAILED;
+
+    printf("PID=%d before writing\n", executorId);
+    int bytesWritten = simplefs_write(fd, buf, fileSize);
+    printf("PID=%d after writing\n", executorId);
+    if (bytesWritten != fileSize) return ERROR_WRITING_TEST_DATA_SIMPLEFS_WRITE_FAILED;
+
+    simplefs_close(fd);
+
+    return 0;
+}
+
 #endif //SIMPLEFS_UTILS_H

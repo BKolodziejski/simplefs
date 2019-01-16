@@ -71,7 +71,7 @@ void Write_NewFileWriteOnlyMode_DataWritten() {
     assert(simplefs_write(fd, buf, bufLen) == bufLen);
     simplefs_close(fd);
 
-    fd = simplefs_open("/file01", O_RDONLY, 0);
+    fd = simplefs_open("/file40", O_RDONLY, 0);
     char readBuf[bufLen];
     assert(simplefs_read(fd, readBuf, bufLen) == bufLen);
     for (int i = 0; i < bufLen; i++) {
@@ -162,6 +162,15 @@ void Write_TwoFiles_EachFilesDataWritten() {
     for (int i = 0; i < buf2Len; i++) {
         assert(buf2[i] == readBuf2[i]);
     }
+}
+
+void Write_ReachBlockCountLimit_DataWritten() {
+    int fd = simplefs_open("/file66", O_RDWR, O_CREAT);
+    assert(fd >= 0);
+    char buf[1000*4096];
+    int bufLen = 1000*4096;
+
+    assert(simplefs_write(fd, buf, bufLen) == ERR_NOT_ENOUGH_SPACE);
 }
 
 
