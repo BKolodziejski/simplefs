@@ -424,7 +424,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
 
     // Mark file as unused in parent dir
     parentDir.files[fileIndex].isUsed = 0;
-    writeFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory));
+    writeFile(parentDirInodeIndex, &parentDir, 0, sizeof(Directory), 0);
 
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
 
@@ -477,8 +477,8 @@ void simplefsInit() {
     if (fsDescriptor == UNIX_OPEN_FAILED_CODE) {
         createDefaultSimplefs();
     }
-    // debug stuff
 
+    // debug stuff
     makeDir(0, "child");
     Directory c1 = {};
     readFile(1, &c1, 0, sizeof(Directory));
@@ -488,37 +488,22 @@ void simplefsInit() {
     readFile(1, &c2, 0, sizeof(Directory));
 
     makeDir(0, "child2"); // 1 (inode number)
-    Directory c3 = {};
-    readFile(1, &c3, 0, sizeof(Directory));
-
     makeDir(0, "child3"); // 2
-    Directory c4 = {};
-    readFile(1, &c4, 0, sizeof(Directory));
-
     makeDir(0, "child4"); // 3
-    Directory c5 = {};
-    readFile(1, &c5, 0, sizeof(Directory));
-
-    makeDir(0, "child5");
-    Directory c6 = {};
-    readFile(1, &c6, 0, sizeof(Directory));
-
-    makeDir(0, "child6");
-    Directory c7 = {};
-    readFile(1, &c7, 0, sizeof(Directory));
-
+    makeDir(0, "child5"); // 4
+    makeDir(0, "child6"); // 5
     makeDir(0, "child7"); // 6
-    Directory c8 = {};
-    readFile(1, &c8, 0, sizeof(Directory));
 
     makeDir(1, "child8"); // 7 => /child2/child8
     Directory c9 = {};
     readFile(1, &c9, 0, sizeof(Directory));
-    debugPrint();
+//    debugPrint();
+
     makeDir(2, "child9"); // 8 => /child3/child9
     Directory c10 = {};
     readFile(1, &c10, 0, sizeof(Directory));
-    debugPrint();
+//    debugPrint();
+
     SimplefsIndex ch2Idx = evaluatePath("/child2/../child2");
     Directory child2 = {};
     readFile(ch2Idx, &child2, 0, sizeof(Directory));
@@ -527,13 +512,8 @@ void simplefsInit() {
     Directory child8 = {};
     readFile(ch8Idx, &child8, 0, sizeof(Directory));
 
-    unlinkFile(0, "child2");
-    SimplefsIndex index2 = evaluatePath("/child2/child8");
-
-
     Directory root = {};
     readFile(0, &root, 0, sizeof(Directory));
-    SimplefsIndex index = evaluatePath("/child2/child8");
     char fname[65];
     Directory root1 = {};
     readFile(1, &root1, 0, sizeof(Directory));
@@ -541,8 +521,13 @@ void simplefsInit() {
     readFile(2, &root2, 0, sizeof(Directory));
     int lastNotedSlashOffset = getFilename("/child2/../child3/child8", fname);
     SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", lastNotedSlashOffset);
+
+    debugPrint();
     unlinkFile(0, "child2");
+    debugPrint();
+
     SimplefsIndex index2 = evaluatePath("/child2/child8");
+
     close(fsDescriptor);
 }
 
