@@ -30,7 +30,10 @@ int main() {
     Write_NewFile_DataWritten();
     Write_NewFileDataLargerThanBlockSize_DataWritten();
     Write_ExistingFileWithData_DataReplaced();
+    Write_NewFileWriteOnlyMode_DataWritten();
     Write_TwoFiles_EachFilesDataWritten();
+    // run separately
+    //Write_ReachBlockCountLimit_DataWritten();
 
     // simplefs_open
     Open_FileDoesNotExist_ErrorCodeReturned();
@@ -40,6 +43,12 @@ int main() {
     Open_FilenameUsedAsDirInPath_ErrorCodeReturned();
     Open_TooLongFilename_ErrorCodeReturned();
     Open_TooLongPath_ErrorCodeReturned();
+    Open_ReachFilesInDirLimit_ErrorCodeReturned();
+
+    // run separately, SIMPLEFS_BLOCK_COUNT >= 10000 required
+    //Open_ReachTooManyFilesOpenLimit_ErrorCodeReturned();
+    //Open_ReachInodeCountLimit_ErrorCodeReturned();
+
 
     // simplefs_read
     Read_UnopenedFd_ErrorCodeReturned();
