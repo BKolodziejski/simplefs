@@ -79,7 +79,7 @@ int main() {
     Unlink_Directory_DirectoryRemoved();
     Unlink_File_FileRemoved();
     // TODO disallow unlink when files are opened
-    //Unlink_FileOpened_ErrorCodeReturned();
+    Unlink_FileOpened_ErrorCodeReturned();
     //Unlink_DirectoryHasOpenedFiles_ErrorCodeReturned();
 
     // simplefs_chmode

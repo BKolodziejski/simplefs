@@ -38,7 +38,7 @@ void Unlink_File_FileRemoved() {
 void Unlink_FileOpened_ErrorCodeReturned() {
     int fd = simplefs_open("/foo_dir/temp_file", O_RDWR, O_CREAT);
 
-    assert(simplefs_unlink("/foo_dir/temp_file") < 0);
+    assert(simplefs_unlink("/foo_dir/temp_file") == ERR_RESOURCE_BUSY);
 
     simplefs_close(fd);
 }
