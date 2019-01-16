@@ -71,6 +71,23 @@ void Write_NewFile_DataWritten() {
     }
 }
 
+void Write_WriteTwice_DataWritten() {
+    int fd = simplefs_open("/file90", O_RDWR, O_CREAT);
+    assert(fd >= 0);
+    char buf[] = {'X', 'Y', 'Z'};
+    int bufLen = 3;
+
+    assert(simplefs_write(fd, buf, 1) == 1);
+    assert(simplefs_write(fd, buf, 2) == 2);
+
+    char readBuf[bufLen];
+
+    assert(simplefs_read(fd, readBuf, bufLen) == bufLen);
+    for (int i = 0; i < bufLen; i++) {
+        assert(buf[i] == readBuf[i]);
+    }
+}
+
 void Write_NewFileWriteOnlyMode_DataWritten() {
     int fd = simplefs_open("/file40", O_WRONLY, O_CREAT);
     assert(fd >= 0);
