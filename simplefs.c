@@ -120,11 +120,19 @@ int simplefs_unlink(char* path) {
     if(lastNotedSlashOffset == ERR_FILENAME_TOO_LONG) {
         return ERR_FILENAME_TOO_LONG;
     }
-    SimplefsIndex index = evaluatePathForParent(path, lastNotedSlashOffset);
-    if (index == SIMPLEFS_INODE_COUNT) {
+    SimplefsIndex parentDirInodeIndex = evaluatePathForParent(path, lastNotedSlashOffset);
+    if (parentDirInodeIndex == SIMPLEFS_INODE_COUNT) {
         return ERR_FILENAME_NOT_FOUND;
     }
-    return unlinkFile(index, filename);
+
+    SimplefsIndex fileInode = evaluatePath(path);
+    for (int i = 0; i < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS; ++i) {
+        if (fdToData[i].inodeNumber == fileInode && fdToData[i].isOpen) {
+            return ERR_RESOURCE_BUSY;
+        }
+    }
+
+    return unlinkFile(parentDirInodeIndex, filename);
 }
 
 int simplefs_mkdir(char* path) {
