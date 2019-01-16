@@ -82,9 +82,12 @@ void Write_WriteTwice_DataWritten() {
     assert(simplefs_write(fd, buf, 1) == 1);
     assert(simplefs_write(fd, buf, 2) == 2);
 
+    simplefs_close(fd);
     char readBuf[bufLen];
+    fd = simplefs_open("/file90", O_RDONLY, 0);
 
-    assert(simplefs_read(fd, readBuf, bufLen) == bufLen);
+    int read = simplefs_read(fd, readBuf, bufLen);
+    assert(read == bufLen);
     for (int i = 0; i < bufLen; i++) {
         assert(buf[i] == readBuf[i]);
     }
