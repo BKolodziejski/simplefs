@@ -96,10 +96,14 @@ int simplefs_open(char* path, int mode, int flags) {
 
 int simplefs_close(int fd) {
     initializeIfNeeded();
-    // TODO: semaphores ?
 
     if (!(fd >= 0 && fd < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS && fdToData[fd].isOpen)) {
         return ERR_INVALID_FD;
+    }
+
+    if (fdToData[fd].mode == O_WRONLY || fdToData[fd].mode == O_RDWR) {
+        unlockInode(fdToData[fd].inodeNumber);
+        //left file inode critical section
     }
 
     fdToData[fd].isOpen = 0;
@@ -143,7 +147,6 @@ int simplefs_mkdir(char* path) {
 
 int simplefs_read(int fd, char* buf, int len) {
     initializeIfNeeded();
-    // TODO: semaphores
     if (!(fd >= 0 && fd < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS && fdToData[fd].isOpen)) {
         return ERR_INVALID_FD;
     }
@@ -160,7 +163,6 @@ int simplefs_read(int fd, char* buf, int len) {
 
 int simplefs_write(int fd, char* buf, int len) {
     initializeIfNeeded();
-    // TODO: semaphores
     if (!(fd >= 0 && fd < SIMPLEFS_MAX_OPEN_FILES_PER_PROCESS && fdToData[fd].isOpen)) {
         return ERR_INVALID_FD;
     }

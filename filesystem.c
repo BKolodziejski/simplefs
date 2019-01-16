@@ -412,7 +412,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
         return ERR_FILENAME_NOT_FOUND;
     }
 
-    SimplefsIndex inodeIndex = parentDir.files[fileIndex].inodeIndex; // inode of file to unlink // TODO fix SEGFAULT
+    SimplefsIndex inodeIndex = parentDir.files[fileIndex].inodeIndex; // inode of file to unlink
     if (lockInode(inodeIndex)) {
         unlockInode(parentDirInodeIndex);
         return ERR_RESOURCE_BUSY;
