@@ -49,7 +49,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName);
 
 int makeDir(SimplefsIndex parentDirInodeIndex, char* name);
 
-int createFile(SimplefsIndex parentDirInodeIndex, char* name);
+int createFile(SimplefsIndex parentDirInodeIndex, char* name, SimplefsIndex* createdFileInodeIndex);
 
 int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len, uint8_t apiCall);
 

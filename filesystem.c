@@ -347,7 +347,10 @@ int makeDir(SimplefsIndex parentDirInodeIndex, char* name) {
     return ERR_MAX_FILES_IN_DIR_REACHED;
 }
 
-int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
+int createFile(SimplefsIndex parentDirInodeIndex, char* name, SimplefsIndex* createdFileInodeIndex) {
+    if (lockInode(parentDirInodeIndex)) {
+        return ERR_RESOURCE_BUSY;
+    }
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
     Directory dir = {};
     readFile(parentDirInodeIndex, &dir, 0, sizeof(Directory));
@@ -358,15 +361,24 @@ int createFile(SimplefsIndex parentDirInodeIndex, char* name) {
             int status;
             if ((status = reserveNextFreeInode(SIMPLEFS_FILETYPE_FILE, &newFileInode))) {
                 close(fsDescriptor);
+                unlockInode(parentDirInodeIndex);
                 return status;
             }
+
+            int retVal = 0;
+            if ((lockInode(newFileInode))) {
+                retVal = ERR_FILE_CREATED_RESOURCE_BUSY;
+            }
+            *createdFileInodeIndex = newFileInode;
             dir.files[i].inodeIndex = newFileInode;
             dir.files[i].isUsed = 1;
             writeFile(parentDirInodeIndex, &dir, 0, sizeof(Directory), 0);
             close(fsDescriptor);
-            return 0;
+            unlockInode(parentDirInodeIndex);
+            return retVal;
         }
     }
+    unlockInode(parentDirInodeIndex);
     return ERR_MAX_FILES_IN_DIR_REACHED;
 }
 
