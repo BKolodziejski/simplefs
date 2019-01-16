@@ -3,37 +3,20 @@
 
 #include "simplefs_mkdir.h"
 
-void Chmode_NonExistingDirectory_ErrorCodeReturned() {
-    // assert(simplefs_chmode("/non_exist_dir/new_dir") < 0);
-
-}
-
 void Chmode_NonExistingFile_ErrorCodeReturned() {
-
-}
-
-void Chmode_FileOpened_ErrorCodeReturned() {
-
+    assert(simplefs_chmode("/non_exist_file/new_dir", SFS_READ_WRITE) == ERR_FILENAME_NOT_FOUND);
 }
 
 void Chmode_SetFileReadOnly_ModeChanged() {
-    // try writing to file
+    assert(simplefs_chmode("/foo_dir/chmode_test_file", SFS_READ_WRITE) == 0);
+}
 
+void Chmode_SetFileWriteOnly_ModeChanged() {
+    assert(simplefs_chmode("/foo_dir/chmode_test_file", SFS_WRITE) == 0);
 }
 
 void Chmode_SetFileReadWrite_ModeChanged() {
-    // try writing to file
-
-}
-
-void Chmode_SetDirectorReadOnly_ModeChanged() {
-    // try creating a file
-
-}
-
-void Chmode_SetDirectorReadWrite_ModeChanged() {
-    // creating and remove file
-
+    assert(simplefs_chmode("/foo_dir/chmode_test_file", SFS_READ_WRITE) == 0);
 }
 
 #endif //SIMPLEFS_SIMPLEFS_CHMODE_H

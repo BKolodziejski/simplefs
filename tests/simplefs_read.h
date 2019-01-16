@@ -64,5 +64,20 @@ void Read_ReadOnlyFile_DataRead() {
     assert(buf[3] == 'd');
 };
 
+void Read_WriteOnlyFile_ErrorCodeReturned() {
+    char buf[4];
+    simplefs_chmode("/foo_dir/file03", SFS_WRITE);
+    int fd = simplefs_open("/foo_dir/file03", 0, 0);
+
+
+    assert(simplefs_read(fd, buf, 4) == 4);
+    assert(buf[0] == 'a');
+    assert(buf[1] == 'b');
+    assert(buf[2] == 'c');
+    assert(buf[3] == 'd');
+
+    simplefs_chmode("/foo_dir/file03", SFS_READ);
+};
+
 
 #endif //SIMPLEFS_SIMPLEFS_READ_H
