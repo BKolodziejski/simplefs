@@ -20,6 +20,36 @@ static uint64_t blockIndexToBitmapPosition(SimplefsIndex blockIndex) ;
 
 int reserveBlocks(int blocks, SimplefsIndex* destination);
 
+static uint64_t blockIndexToPosition(SimplefsIndex blockIndex) {
+    return SIMPLEFS_INODE_COUNT * sizeof(Inode) + SIMPLEFS_BLOCK_COUNT * sizeof(uint8_t) + blockIndex * sizeof(Block);
+}
+
+void debugPrint() {
+    printf("------------------------------");
+    int fd = open(SIMPLEFS_PATH, O_RDONLY);
+    for (int i = 0; i < SIMPLEFS_INODE_COUNT; ++i) {
+        Inode inode;
+        read(fd, &inode, sizeof(Inode));
+        if (inode.isUsed) {
+            printf("Inode %d\n", i);
+            printf("Size %ld\n", inode.fileSize);
+            int64_t size = inode.fileSize;
+            SimplefsIndex blockIndex = inode.firstBlockIndex;
+            int fdPerInode = open(SIMPLEFS_PATH, O_RDONLY);
+            char buf[SIMPLEFS_BLOCK_SIZE];
+            while (size > 0) {
+                printf("Block Index: %d\n", blockIndex);
+                printf("Block position: %ld\n", blockIndexToPosition(blockIndex));
+                lseek(fdPerInode, blockIndexToPosition(blockIndex), SEEK_SET);
+                read(fdPerInode, buf, SIMPLEFS_BLOCK_SIZE);
+                read(fdPerInode, &blockIndex, sizeof(SimplefsIndex));
+                size -= SIMPLEFS_BLOCK_SIZE;
+            }
+            close(fdPerInode);
+        }
+    }
+}
+
 void createDefaultSimplefs() {
     int fd = open(SIMPLEFS_PATH, O_WRONLY | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 
@@ -42,10 +72,6 @@ void createDefaultSimplefs() {
 
 static uint64_t inodeIndexToPosition(SimplefsIndex inodeIndex) {
     return inodeIndex * sizeof(Inode);
-}
-
-static uint64_t blockIndexToPosition(SimplefsIndex blockIndex) {
-    return SIMPLEFS_INODE_COUNT * sizeof(Inode) + SIMPLEFS_BLOCK_COUNT * sizeof(uint8_t) + blockIndex * sizeof(Block);
 }
 
 static uint64_t blockIndexToBitmapPosition(SimplefsIndex blockIndex) {
@@ -77,6 +103,7 @@ int reserveNextFreeInode(uint8_t type, SimplefsIndex* freeInode) {
             lseek(fd, -sizeof(Inode), SEEK_CUR);
             inode.isUsed = 1;
             inode.fileType = type;
+            inode.fileSize = 0;
             int status;
             if ((status = reserveBlocks(1, &inode.firstBlockIndex))) {
                 close(fd);
@@ -147,7 +174,7 @@ int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
     if (newSize <= currentSize) {
         return 0;
     }
-    uint64_t remainingSizeInLastBlock = SIMPLEFS_BLOCK_SIZE - (currentSize % SIMPLEFS_BLOCK_SIZE);
+    uint64_t remainingSizeInLastBlock = currentSize == 0 ? SIMPLEFS_BLOCK_SIZE : SIMPLEFS_BLOCK_SIZE - (currentSize % SIMPLEFS_BLOCK_SIZE);
     if((newSize - currentSize) <= remainingSizeInLastBlock) {
         return 0;
     }
@@ -437,11 +464,11 @@ void simplefsInit() {
     makeDir(1, "child8"); // 7 => /child2/child8
     Directory c9 = {};
     readFile(1, &c9, 0, sizeof(Directory));
-
+    debugPrint();
     makeDir(2, "child9"); // 8 => /child3/child9
     Directory c10 = {};
     readFile(1, &c10, 0, sizeof(Directory));
-
+    debugPrint();
     SimplefsIndex ch2Idx = evaluatePath("/child2/../child2");
     Directory child2 = {};
     readFile(ch2Idx, &child2, 0, sizeof(Directory));
