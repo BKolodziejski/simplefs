@@ -53,6 +53,8 @@ void Write_ReadOnlyFile_ErrorCodeReturned() {
     int bufLen = 3;
 
     assert(simplefs_write(fd, buf, bufLen) == ERR_ACCESS_DENIED);
+
+    simplefs_close(fd);
 }
 
 void Write_NewFile_DataWritten() {
@@ -71,6 +73,7 @@ void Write_NewFile_DataWritten() {
     for (int i = 0; i < bufLen; i++) {
         assert(buf[i] == readBuf[i]);
     }
+    simplefs_close(fd);
 }
 
 void Write_WriteTwice_DataWritten() {
@@ -91,6 +94,7 @@ void Write_WriteTwice_DataWritten() {
     for (int i = 0; i < bufLen; i++) {
         assert(buf[i] == readBuf[i]);
     }
+    simplefs_close(fd);
 }
 
 void Write_NewFileWriteOnlyMode_DataWritten() {
@@ -108,6 +112,7 @@ void Write_NewFileWriteOnlyMode_DataWritten() {
     for (int i = 0; i < bufLen; i++) {
         assert(buf[i] == readBuf[i]);
     }
+    simplefs_close(fd);
 }
 
 void Write_NewFileDataLargerThanBlockSize_DataWritten() {
@@ -199,6 +204,8 @@ void Write_TwoFiles_EachFilesDataWritten() {
     for (int i = 0; i < buf2Len; i++) {
         assert(buf2[i] == readBuf2[i]);
     }
+    simplefs_close(fd1);
+    simplefs_close(fd2);
 }
 
 void Write_ReachBlockCountLimit_DataWritten() {

@@ -14,8 +14,10 @@ int main() {
     // create sample files
 
     simplefs_mkdir("/foo_dir");
-    simplefs_open("/foo_dir/bar_file", O_RDWR, O_CREAT); // create file
+    int tmp = simplefs_open("/foo_dir/bar_file", O_RDWR, O_CREAT); // create file
+    simplefs_close(tmp);
     simplefs_open("/foo_dir/chmode_test_file", O_RDWR, O_CREAT); // create file
+    simplefs_close(tmp);
 
     //write data to files
     writeFileToSimpleFs("../tests/test-files/file02", "/foo_dir/file02");

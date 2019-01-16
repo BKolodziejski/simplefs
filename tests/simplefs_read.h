@@ -51,6 +51,8 @@ void Read_File_DataRead() {
     assert(buf[1] == 'o');
     assert(buf[2] == 'r');
     assert(buf[3] == 'e');
+
+    simplefs_close(fd);
 };
 
 void Read_ReadOnlyFile_DataRead() {
@@ -62,6 +64,8 @@ void Read_ReadOnlyFile_DataRead() {
     assert(buf[1] == 'b');
     assert(buf[2] == 'c');
     assert(buf[3] == 'd');
+
+    simplefs_close(fd);
 };
 
 void Read_WriteOnlyFile_ErrorCodeReturned() {
@@ -76,6 +80,7 @@ void Read_WriteOnlyFile_ErrorCodeReturned() {
     assert(buf[2] == 'c');
     assert(buf[3] == 'd');
 
+    simplefs_close(fd);
     simplefs_chmode("/foo_dir/file03", SFS_READ);
 };
 
