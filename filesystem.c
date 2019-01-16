@@ -20,6 +20,36 @@ static uint64_t blockIndexToBitmapPosition(SimplefsIndex blockIndex) ;
 
 int reserveBlocks(int blocks, SimplefsIndex* destination);
 
+static uint64_t blockIndexToPosition(SimplefsIndex blockIndex) {
+    return SIMPLEFS_INODE_COUNT * sizeof(Inode) + SIMPLEFS_BLOCK_COUNT * sizeof(uint8_t) + blockIndex * sizeof(Block);
+}
+
+void debugPrint() {
+    printf("------------------------------");
+    int fd = open(SIMPLEFS_PATH, O_RDONLY);
+    for (int i = 0; i < SIMPLEFS_INODE_COUNT; ++i) {
+        Inode inode;
+        read(fd, &inode, sizeof(Inode));
+        if (inode.isUsed) {
+            printf("Inode %d\n", i);
+            printf("Size %ld\n", inode.fileSize);
+            int64_t size = inode.fileSize;
+            SimplefsIndex blockIndex = inode.firstBlockIndex;
+            int fdPerInode = open(SIMPLEFS_PATH, O_RDONLY);
+            char buf[SIMPLEFS_BLOCK_SIZE];
+            while (size > 0) {
+                printf("Block Index: %d\n", blockIndex);
+                printf("Block position: %ld\n", blockIndexToPosition(blockIndex));
+                lseek(fdPerInode, blockIndexToPosition(blockIndex), SEEK_SET);
+                read(fdPerInode, buf, SIMPLEFS_BLOCK_SIZE);
+                read(fdPerInode, &blockIndex, sizeof(SimplefsIndex));
+                size -= SIMPLEFS_BLOCK_SIZE;
+            }
+            close(fdPerInode);
+        }
+    }
+}
+
 void createDefaultSimplefs() {
     int fd = open(SIMPLEFS_PATH, O_WRONLY | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 
@@ -44,17 +74,13 @@ static uint64_t inodeIndexToPosition(SimplefsIndex inodeIndex) {
     return inodeIndex * sizeof(Inode);
 }
 
-static uint64_t blockIndexToPosition(SimplefsIndex blockIndex) {
-    return SIMPLEFS_INODE_COUNT * sizeof(Inode) + SIMPLEFS_BLOCK_COUNT * sizeof(uint8_t) + blockIndex * sizeof(Block);
-}
-
 static uint64_t blockIndexToBitmapPosition(SimplefsIndex blockIndex) {
     return SIMPLEFS_INODE_COUNT * sizeof(Inode) + blockIndex * sizeof(uint8_t);
 }
 
 static Inode getInode(int fd, SimplefsIndex index) {
     uint64_t inodePosition = inodeIndexToPosition(index);
-    Inode inode;
+    Inode inode = {};
     lseek(fd, inodePosition, SEEK_SET);
     read(fd, &inode, sizeof(Inode));
     return inode;
@@ -69,7 +95,7 @@ int reserveNextFreeInode(uint8_t type, SimplefsIndex* freeInode) {
     if (lockInodeTable()) {
         return ERR_RESOURCE_BUSY;
     }
-    Inode inode;
+    Inode inode = {};
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     for (SimplefsIndex i = 0; i < SIMPLEFS_INODE_COUNT; ++i) {
         read(fd, &inode, sizeof(Inode));
@@ -77,6 +103,7 @@ int reserveNextFreeInode(uint8_t type, SimplefsIndex* freeInode) {
             lseek(fd, -sizeof(Inode), SEEK_CUR);
             inode.isUsed = 1;
             inode.fileType = type;
+            inode.fileSize = 0;
             int status;
             if ((status = reserveBlocks(1, &inode.firstBlockIndex))) {
                 close(fd);
@@ -147,7 +174,7 @@ int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
     if (newSize <= currentSize) {
         return 0;
     }
-    uint64_t remainingSizeInLastBlock = SIMPLEFS_BLOCK_SIZE - (currentSize % SIMPLEFS_BLOCK_SIZE);
+    uint64_t remainingSizeInLastBlock = currentSize == 0 ? SIMPLEFS_BLOCK_SIZE : SIMPLEFS_BLOCK_SIZE - (currentSize % SIMPLEFS_BLOCK_SIZE);
     if((newSize - currentSize) <= remainingSizeInLastBlock) {
         return 0;
     }
@@ -360,7 +387,7 @@ int unlinkFile(SimplefsIndex parentDirInodeIndex, char* fileName) {
     }
 
     int fsDescriptor = open(SIMPLEFS_PATH, O_RDWR);
-    Inode inode;
+    Inode inode = {};
     lseek(fsDescriptor, inodeIndexToPosition(inodeIndex), SEEK_SET);
     read(fsDescriptor, &inode, sizeof(Inode));
 
@@ -401,27 +428,55 @@ void simplefsInit() {
         createDefaultSimplefs();
     }
     // debug stuff
-    makeDir(0, "child");
-    unlinkFile(0, "child");
-    makeDir(0, "child2");
-    makeDir(0, "child3");
-    makeDir(0, "child4");
-    makeDir(0, "child5");
-    makeDir(0, "child6");
-    makeDir(0, "child7");
-    makeDir(1, "child8");
-    makeDir(2, "child9");
 
-    Directory root = {};
-    readFile(0, &root, 0, sizeof(Directory));
-    SimplefsIndex index = evaluatePath("/child2/child8");
-    char fname[65];
-    Directory root1 = {};
-    readFile(1, &root1, 0, sizeof(Directory));
-    Directory root2 = {};
-    readFile(2, &root2, 0, sizeof(Directory));
-    int lastNotedSlashOffset = getFilename("/child2/../child3/child8", fname);
-    SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", lastNotedSlashOffset);
+    makeDir(0, "child");
+    Directory c1 = {};
+    readFile(1, &c1, 0, sizeof(Directory));
+
+    unlinkFile(0, "child");
+    Directory c2 = {};
+    readFile(1, &c2, 0, sizeof(Directory));
+
+    makeDir(0, "child2"); // 1 (inode number)
+    Directory c3 = {};
+    readFile(1, &c3, 0, sizeof(Directory));
+
+    makeDir(0, "child3"); // 2
+    Directory c4 = {};
+    readFile(1, &c4, 0, sizeof(Directory));
+
+    makeDir(0, "child4"); // 3
+    Directory c5 = {};
+    readFile(1, &c5, 0, sizeof(Directory));
+
+    makeDir(0, "child5");
+    Directory c6 = {};
+    readFile(1, &c6, 0, sizeof(Directory));
+
+    makeDir(0, "child6");
+    Directory c7 = {};
+    readFile(1, &c7, 0, sizeof(Directory));
+
+    makeDir(0, "child7"); // 6
+    Directory c8 = {};
+    readFile(1, &c8, 0, sizeof(Directory));
+
+    makeDir(1, "child8"); // 7 => /child2/child8
+    Directory c9 = {};
+    readFile(1, &c9, 0, sizeof(Directory));
+    debugPrint();
+    makeDir(2, "child9"); // 8 => /child3/child9
+    Directory c10 = {};
+    readFile(1, &c10, 0, sizeof(Directory));
+    debugPrint();
+    SimplefsIndex ch2Idx = evaluatePath("/child2/../child2");
+    Directory child2 = {};
+    readFile(ch2Idx, &child2, 0, sizeof(Directory));
+
+    SimplefsIndex ch8Idx = evaluatePath("/child2/../child2/child8");
+    Directory child8 = {};
+    readFile(ch8Idx, &child8, 0, sizeof(Directory));
+
     unlinkFile(0, "child2");
     SimplefsIndex index2 = evaluatePath("/child2/child8");
     close(fsDescriptor);
