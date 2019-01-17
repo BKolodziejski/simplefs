@@ -18,6 +18,8 @@ void readers() {
 void writers() {
     newWriterChild();
     newWriterChild();
+    newWriterChild();
+    newWriterChild();
 
     while (waitpid(-1, NULL, 0) > 0);
 }

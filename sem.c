@@ -117,7 +117,6 @@ void unlockInode(SimplefsIndex inodeIndex) {
         // left inode critical section
 
         sem_close(inodeSem);
-        sem_unlink(semName);
 
         sem_post(countingSem);
         // left counting-semaphore critical section
