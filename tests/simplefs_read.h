@@ -71,15 +71,10 @@ void Read_ReadOnlyFile_DataRead() {
 void Read_WriteOnlyFile_ErrorCodeReturned() {
     char buf[4];
     simplefs_chmode("/foo_dir/file03", SFS_WRITE);
-    int fd = simplefs_open("/foo_dir/file03", 0, 0);
-
-
-    assert(simplefs_read(fd, buf, 4) == 4);
-    assert(buf[0] == 'a');
-    assert(buf[1] == 'b');
-    assert(buf[2] == 'c');
-    assert(buf[3] == 'd');
-
+    int fd = simplefs_open("/foo_dir/file03", O_RDONLY, 0);
+    
+    assert(simplefs_read(fd, buf, 4) == ERR_ACCESS_DENIED);
+    
     simplefs_close(fd);
     simplefs_chmode("/foo_dir/file03", SFS_READ);
 };
