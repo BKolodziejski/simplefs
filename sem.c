@@ -3,12 +3,14 @@
 //
 
 #include <assert.h>
+#include <time.h>
 #include "sem.h"
 
 // Convert milliseconds to timespec struct
 static struct timespec* ms2ts(struct timespec* ts, unsigned long ms) {
-    ts->tv_sec = ms / 1000;
-    ts->tv_nsec = (ms % 1000) * 1000000;
+    clock_gettime(CLOCK_REALTIME, ts);
+    ts->tv_sec += ms / 1000;
+    ts->tv_nsec += (ms % 1000) * 1000000;
     return ts;
 }
 
