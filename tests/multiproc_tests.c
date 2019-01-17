@@ -18,18 +18,14 @@ void readers() {
 void writers() {
     newWriterChild();
     newWriterChild();
-    newWriterChild();
-
-    while (waitpid(-1, NULL, 0) > 0);
-
-    newWriterChild();
 
     while (waitpid(-1, NULL, 0) > 0);
 }
 
 int main() {
     system("rm ../tests/test-output/file02_*");
-    writeFileToSimpleFsDebug("../tests/test-files/file02", "/file02", 0);
+    int status = writeFileToSimpleFsDebug("../tests/test-files/file02", "/file02", 0);
+    printf("MAIN: write status: %d\n", status);
 
     printf("MAIN: starting processes\n");
 
@@ -48,7 +44,6 @@ __pid_t newWriterChild() {
     if (pid == 0) {
         __pid_t myPid = getpid();
         printf("PID=%d started\n", myPid);
-        //sleep(myPid % 5 + 1); // TODO
 
         int writeStatus = writeFileToSimpleFsDebug("../tests/test-files/file02", "/file02", myPid);
 

@@ -34,7 +34,6 @@ int main() {
     Write_NewFile_DataWritten();
     Write_NewFileDataLargerThanBlockSize_DataWritten();
     Write_ExistingFileWithData_DataReplaced();
-    // Write_WriteTwice_DataWritten(); TODO
     Write_NewFileWriteOnlyMode_DataWritten();
     Write_TwoFiles_EachFilesDataWritten();
     // run separately
@@ -68,7 +67,6 @@ int main() {
 
     // simplefs_mkdir
     Mkdir_NonExistingPath_ErrorCodeReturned();
-    //Mkdir_FilenameAsDirPath_ErrorCodeReturned(); TODO fix
     Mkdir_DirectoryExists_ErrorCodeReturned();
     Mkdir_FileWithSameNameExists_ErrorCodeReturned();
     Mkdir_ValidPath_DirectoryCreated();
@@ -80,9 +78,7 @@ int main() {
     Unlink_NonExistingFileInDirectory_ErrorCodeReturned();
     Unlink_Directory_DirectoryRemoved();
     Unlink_File_FileRemoved();
-    // TODO disallow unlink when files are opened
     Unlink_FileOpened_ErrorCodeReturned();
-    //Unlink_DirectoryHasOpenedFiles_ErrorCodeReturned();
 
     // simplefs_chmode
     Chmode_NonExistingFile_ErrorCodeReturned();

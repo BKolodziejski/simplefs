@@ -8,12 +8,6 @@ void Mkdir_NonExistingPath_ErrorCodeReturned() {
     assert(simplefs_mkdir("/non_exist_dir/new_dir") == ERR_FILENAME_NOT_FOUND);
 }
 
-void Mkdir_FilenameAsDirPath_ErrorCodeReturned() {
-    // TODO
-    int i = simplefs_mkdir("/foo_dir/bar_file/new_dir");
-    assert(i < 0);
-}
-
 void Mkdir_DirectoryExists_ErrorCodeReturned() {
     assert(simplefs_mkdir("/foo_dir") == ERR_FILE_ALREADY_EXISTS);
 }

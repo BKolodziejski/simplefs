@@ -43,14 +43,5 @@ void Unlink_FileOpened_ErrorCodeReturned() {
     simplefs_close(fd);
 }
 
-void Unlink_DirectoryHasOpenedFiles_ErrorCodeReturned() {
-    simplefs_mkdir("/foo_dir/tmp_dir");
-    int fd = simplefs_open("/foo_dir/tmp_dir/temp_file", O_RDWR, O_CREAT);
-
-    assert(simplefs_unlink("/foo_dir/tmp_dir") < 0);
-
-    simplefs_close(fd);
-}
-
 
 #endif //SIMPLEFS_SIMPLEFS_UNLINK_H
