@@ -87,7 +87,7 @@ int writeFileToSimpleFsDebug(const char *srcFilename, char *dstFilename, int exe
 
     printf("PID=%d starting write\n", executorId);
     int bytesWritten = simplefs_write(fd, buf, fileSize);
-    sleep(1); // TODO
+    sleep(1);
     printf("PID=%d write finished\n", executorId);
     if (bytesWritten != fileSize) return ERROR_WRITING_TEST_DATA_SIMPLEFS_WRITE_FAILED;
 
@@ -103,7 +103,7 @@ int readFileFromSimpleFsDebug(char *srcFilename, const char *dstFilename, int fi
     __uint8_t buf[fileSize];
     printf("PID=%d starting read\n", executorId);
     int bytesRead = simplefs_read(fd, buf, fileSize);
-    sleep(2); // TODO
+    sleep(2);
     printf("PID=%d read finished\n", executorId);
     if (bytesRead != fileSize) return SIMPLEFS_FILE_READ_FAILED;
     simplefs_close(fd);

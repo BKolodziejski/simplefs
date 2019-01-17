@@ -191,7 +191,6 @@ int calculateRequiredNumberOfBlocks(uint64_t currentSize, uint64_t newSize) {
     return (int) ceil((double)(newSize - currentSize - remainingSizeInLastBlock) / SIMPLEFS_BLOCK_SIZE);
 }
 
-// TODO: handle writeFile() return values in all usages
 int writeFile(SimplefsIndex inodeIndex, void* buf, uint32_t startPos, uint32_t len, u_int8_t apiCall) {
     int fd = open(SIMPLEFS_PATH, O_RDWR);
     Inode inode = getInode(fd, inodeIndex);
@@ -510,56 +509,6 @@ void simplefsInit() {
     if (fsDescriptor == UNIX_OPEN_FAILED_CODE) {
         createDefaultSimplefs();
     }
-
-    // debug stuff
-    makeDir(0, "child");
-    Directory c1 = {};
-    readFile(1, &c1, 0, sizeof(Directory), 0);
-
-    unlinkFile(0, "child");
-    Directory c2 = {};
-    readFile(1, &c2, 0, sizeof(Directory), 0);
-
-    makeDir(0, "child2"); // 1 (inode number)
-    makeDir(0, "child3"); // 2
-    makeDir(0, "child4"); // 3
-    makeDir(0, "child5"); // 4
-    makeDir(0, "child6"); // 5
-    makeDir(0, "child7"); // 6
-
-    makeDir(1, "child8"); // 7 => /child2/child8
-    Directory c9 = {};
-    readFile(1, &c9, 0, sizeof(Directory), 0);
-//    debugPrint();
-
-    makeDir(2, "child9"); // 8 => /child3/child9
-    Directory c10 = {};
-    readFile(1, &c10, 0, sizeof(Directory), 0);
-//    debugPrint();
-
-    SimplefsIndex ch2Idx = evaluatePath("/child2/../child2");
-    Directory child2 = {};
-    readFile(ch2Idx, &child2, 0, sizeof(Directory), 0);
-
-    SimplefsIndex ch8Idx = evaluatePath("/child2/../child2/child8");
-    Directory child8 = {};
-    readFile(ch8Idx, &child8, 0, sizeof(Directory), 0);
-
-    Directory root = {};
-    readFile(0, &root, 0, sizeof(Directory), 0);
-    char fname[65];
-    Directory root1 = {};
-    readFile(1, &root1, 0, sizeof(Directory), 0);
-    Directory root2 = {};
-    readFile(2, &root2, 0, sizeof(Directory), 0);
-    int lastNotedSlashOffset = getFilename("/child2/../child3/child8", fname);
-    SimplefsIndex x = evaluatePathForParent("/child2/../child3/child8", lastNotedSlashOffset);
-
-    debugPrint();
-    unlinkFile(0, "child2");
-    debugPrint();
-
-    SimplefsIndex index2 = evaluatePath("/child2/child8");
 
     close(fsDescriptor);
 }
