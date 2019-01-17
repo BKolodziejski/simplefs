@@ -15,7 +15,7 @@ int simplefs_chmode(char *name, int mode);
 
 #define SFS_READ 1
 #define SFS_WRITE 2
-#define SFS_READ_WRITE 2
+#define SFS_READ_WRITE 3
 
 #define ERR_SIMPLEFS_TOO_MANY_FILES_OPEN -1
 #define ERR_INVALID_FD -2
