@@ -4,6 +4,7 @@
 
 #ifndef SIMPLEFS_SIMPLEFS_H
 #define SIMPLEFS_SIMPLEFS_H
+#include <fcntl.h>           /* For O_* constants */
 
 int simplefs_open(char* name, int mode, int flags);
 int simplefs_close(int fd);

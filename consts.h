@@ -5,7 +5,7 @@
 #ifndef SIMPLEFS_CONSTS_H
 #define SIMPLEFS_CONSTS_H
 
-#define SIMPLEFS_PATH "/home/bartek/Desktop/simplefscontainer"
+#define SIMPLEFS_PATH "/home/michal/uxp1a/data/container"
 #define SIMPLEFS_MAX_FILENAME_LENGTH 64
 #define SIMPLEFS_MAX_PATH_LENGTH 256
 #define SIMPLEFS_BLOCK_SIZE 4096
